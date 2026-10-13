@@ -389,24 +389,85 @@ function updateRuleBadges() {
 // Theme Manager (Fiesta Clásica, Día de los Muertos, Vintage Feria 1950s)
 let currentTheme = localStorage.getItem('loteria_theme') || 'fiesta';
 
+function updateAmbientDecorations(themeName) {
+  const layer = document.getElementById('ambient-theme-layer');
+  if (!layer) return;
+  layer.innerHTML = '';
+
+  let icons = [];
+  let count = 10;
+  if (themeName === 'muertos') {
+    icons = ['💀', '🌼', '🏵️', '🕯️', '💀', '🌼', '🏵️', '💀'];
+    count = 14;
+  } else if (themeName === 'vintage') {
+    icons = ['⭐', '✦', '✨', '🪙', '★'];
+    count = 10;
+  } else {
+    // fiesta
+    icons = ['🎉', '✨', '🪅', '🎊', '🇲🇽'];
+    count = 10;
+  }
+
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('div');
+    p.className = 'ambient-particle';
+    const icon = icons[i % icons.length];
+    p.textContent = icon;
+
+    const left = (i * (94 / count) + Math.random() * (90 / count)).toFixed(1);
+    const duration = (10 + Math.random() * 8).toFixed(1);
+    const delay = (Math.random() * 7).toFixed(1);
+    const size = themeName === 'muertos' ? (1.3 + Math.random() * 0.9).toFixed(2) : (0.95 + Math.random() * 0.75).toFixed(2);
+    const driftX = (Math.random() * 90 - 45).toFixed(0) + 'px';
+    const rot = (Math.random() * 140 - 70).toFixed(0) + 'deg';
+
+    p.style.left = `${left}%`;
+    p.style.fontSize = `${size}rem`;
+    p.style.animationDuration = `${duration}s`;
+    p.style.animationDelay = `${delay}s`;
+    p.style.setProperty('--drift-x', driftX);
+    p.style.setProperty('--rot', rot);
+
+    if (themeName === 'muertos' && (icon === '🌼' || icon === '🏵️')) {
+      p.style.color = '#f59e0b';
+    } else if (themeName === 'vintage') {
+      p.style.color = '#dda15e';
+    }
+
+    layer.appendChild(p);
+  }
+}
+
 function applyTheme(themeName) {
   currentTheme = themeName;
   localStorage.setItem('loteria_theme', themeName);
   document.body.dataset.theme = themeName;
 
   const themeBtn = document.getElementById('btn-toggle-theme');
-  if (themeBtn) {
-    if (themeName === 'muertos') {
+  const logoBadge = document.querySelector('.logo-badge');
+
+  if (themeName === 'muertos') {
+    if (themeBtn) {
       themeBtn.textContent = '💀';
-      themeBtn.title = 'Día de los Muertos';
-    } else if (themeName === 'vintage') {
-      themeBtn.textContent = '📜';
-      themeBtn.title = 'Vintage Feria 1950s';
-    } else {
-      themeBtn.textContent = '🎨';
-      themeBtn.title = 'Fiesta Clásica';
+      themeBtn.title = 'Día de los Muertos (Click to switch / Clic para cambiar)';
     }
+    if (logoBadge) logoBadge.textContent = '💀';
+  } else if (themeName === 'vintage') {
+    if (themeBtn) {
+      themeBtn.textContent = '📜';
+      themeBtn.title = 'Vintage Feria 1950s (Click to switch / Clic para cambiar)';
+    }
+    if (logoBadge) logoBadge.textContent = '🎪';
+  } else {
+    if (themeBtn) {
+      themeBtn.textContent = '🎨';
+      themeBtn.title = 'Fiesta Clásica (Click to switch / Clic para cambiar)';
+    }
+    if (logoBadge) logoBadge.textContent = '🎴';
   }
+
+  // Atmospheric floating decorations
+  updateAmbientDecorations(themeName);
 
   // Re-render QR code with theme-appropriate dark color if open
   if (currentRoomCode) {

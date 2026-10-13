@@ -28,13 +28,53 @@ body {
   overflow-x: hidden;
 }
 
-/* Papel Picado Banner */
+/* Ambient Floating Decorations Layer */
+.ambient-theme-layer {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.ambient-particle {
+  position: absolute;
+  bottom: -45px;
+  user-select: none;
+  pointer-events: none;
+  animation: ambientFloatUp linear infinite;
+  opacity: 0;
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
+@keyframes ambientFloatUp {
+  0% {
+    transform: translateY(0) translateX(0) rotate(0deg) scale(0.85);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.7;
+  }
+  85% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translateY(calc(-100vh - 60px)) translateX(var(--drift-x, 30px)) rotate(var(--rot, 45deg)) scale(1.15);
+    opacity: 0;
+  }
+}
+
+/* Papel Picado Festive Banner with Cutout Folk Icons */
 .papel-picado {
   display: flex;
   width: 100%;
-  height: 28px;
+  height: 32px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+  position: relative;
+  z-index: 5;
 }
 
 .papel-flag {
@@ -42,7 +82,21 @@ body {
   height: 100%;
   clip-path: polygon(0% 0%, 100% 0%, 100% 85%, 50% 100%, 0% 85%);
   animation: flagWave 3s ease-in-out infinite alternate;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
 }
+
+.papel-flag::after {
+  font-size: 0.92rem;
+  line-height: 1;
+  opacity: 0.88;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));
+  margin-top: -3px;
+  user-select: none;
+}
+
 .papel-flag:nth-child(1) { background: #e11d48; }
 .papel-flag:nth-child(2) { background: #0284c7; animation-delay: 0.3s; }
 .papel-flag:nth-child(3) { background: #15803d; animation-delay: 0.6s; }
@@ -59,6 +113,8 @@ body {
 
 /* App Header */
 .app-header {
+  position: relative;
+  z-index: 10;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -122,6 +178,8 @@ body {
 
 /* Container */
 .container {
+  position: relative;
+  z-index: 2;
   max-width: 1200px;
   margin: 0 auto;
   padding: 16px;
@@ -1211,63 +1269,333 @@ body {
 }
 
 /* ============================================================
-   🎨 THEMES & PAPEL PICADO SKINS
+   🎨 THEMES & MEXICAN FOLKLORE STYLES
    ============================================================ */
 
-/* 1. Fiesta Clásica (Default vibrant Mexican market colors) */
+/* ------------------------------------------------------------
+   1. FIESTA CLÁSICA (Default vibrant Mexican Mercado)
+   ------------------------------------------------------------ */
 body[data-theme="fiesta"], body:not([data-theme]) {
-  background: radial-gradient(circle at top, #2d1810 0%, #170d0a 100%);
+  background: radial-gradient(ellipse at 50% 0%, #3a1c11 0%, #201008 55%, #0f0704 100%);
 }
 
-/* 2. Día de los Muertos Theme */
+body[data-theme="fiesta"] .welcome-card::before,
+body:not([data-theme]) .welcome-card::before {
+  content: '🎴 🇲🇽 ¡LOTERÍA TRADICIONAL MEXICANA! 🇲🇽 🎴';
+  display: block;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #f59e0b;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed rgba(245, 158, 11, 0.35);
+}
+
+/* Fiesta Papel Picado cutouts */
+body[data-theme="fiesta"] .papel-flag:nth-child(1)::after, body:not([data-theme]) .papel-flag:nth-child(1)::after { content: '🎴'; }
+body[data-theme="fiesta"] .papel-flag:nth-child(2)::after, body:not([data-theme]) .papel-flag:nth-child(2)::after { content: '🌵'; }
+body[data-theme="fiesta"] .papel-flag:nth-child(3)::after, body:not([data-theme]) .papel-flag:nth-child(3)::after { content: '🌶️'; }
+body[data-theme="fiesta"] .papel-flag:nth-child(4)::after, body:not([data-theme]) .papel-flag:nth-child(4)::after { content: '🎺'; }
+body[data-theme="fiesta"] .papel-flag:nth-child(5)::after, body:not([data-theme]) .papel-flag:nth-child(5)::after { content: '🌮'; }
+body[data-theme="fiesta"] .papel-flag:nth-child(6)::after, body:not([data-theme]) .papel-flag:nth-child(6)::after { content: '🎸'; }
+body[data-theme="fiesta"] .papel-flag:nth-child(7)::after, body:not([data-theme]) .papel-flag:nth-child(7)::after { content: '🪅'; }
+body[data-theme="fiesta"] .papel-flag:nth-child(8)::after, body:not([data-theme]) .papel-flag:nth-child(8)::after { content: '☀️'; }
+
+
+/* ------------------------------------------------------------
+   2. DÍA DE LOS MUERTOS (Calaveras, Cempasúchil & Ofrenda)
+   ------------------------------------------------------------ */
 body[data-theme="muertos"] {
-  background: radial-gradient(circle at top, #260f38 0%, #09030e 100%);
+  background: radial-gradient(ellipse at 50% 0%, #390d52 0%, #1d072e 50%, #08020d 100%);
+  color: #fdf4ff;
 }
+
 body[data-theme="muertos"] .app-header {
-  background: rgba(18, 6, 28, 0.85);
-  border-bottom: 1px solid rgba(255, 119, 0, 0.3);
+  background: rgba(18, 6, 28, 0.88);
+  border-bottom: 2px solid rgba(245, 158, 11, 0.45);
+  box-shadow: 0 4px 20px rgba(157, 0, 255, 0.25);
 }
+
+body[data-theme="muertos"] .logo-badge {
+  filter: drop-shadow(0 0 10px #ff7700) drop-shadow(0 0 18px #ec4899);
+  animation: skullPulse 2.5s infinite ease-in-out;
+}
+
+@keyframes skullPulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 8px #ff7700); }
+  50% { transform: scale(1.1); filter: drop-shadow(0 0 16px #ff007f); }
+}
+
 body[data-theme="muertos"] .logo-text h1 {
-  background: linear-gradient(90deg, #ff7700, #ff007f, #9d00ff, #00f0ff);
+  background: linear-gradient(90deg, #ff7700, #ff007f, #a855f7, #38bdf8);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-}
-body[data-theme="muertos"] .papel-flag:nth-child(1) { background: #ff7700; }
-body[data-theme="muertos"] .papel-flag:nth-child(2) { background: #9d00ff; }
-body[data-theme="muertos"] .papel-flag:nth-child(3) { background: #00f0ff; }
-body[data-theme="muertos"] .papel-flag:nth-child(4) { background: #ff007f; }
-body[data-theme="muertos"] .papel-flag:nth-child(5) { background: #ffcc00; }
-body[data-theme="muertos"] .papel-flag:nth-child(6) { background: #ff7700; }
-body[data-theme="muertos"] .papel-flag:nth-child(7) { background: #9d00ff; }
-body[data-theme="muertos"] .papel-flag:nth-child(8) { background: #00f0ff; }
-body[data-theme="muertos"] .card-panel,
-body[data-theme="muertos"] .caller-panel {
-  border-color: rgba(157, 0, 255, 0.3);
-  box-shadow: 0 8px 32px rgba(157, 0, 255, 0.15);
-}
-body[data-theme="muertos"] .tabla-card {
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), 0 0 8px rgba(255, 119, 0, 0.15);
-}
-body[data-theme="muertos"] .btn-primary {
-  background: linear-gradient(135deg, #ff7700, #ff007f);
-  box-shadow: 0 4px 15px rgba(255, 119, 0, 0.4);
+  text-shadow: 0 0 25px rgba(255, 119, 0, 0.35);
 }
 
-/* 3. Vintage Feria 1950s Theme */
+/* Muertos Papel Picado cutouts & colors */
+body[data-theme="muertos"] .papel-flag:nth-child(1) { background: #ff7700; }
+body[data-theme="muertos"] .papel-flag:nth-child(2) { background: #9333ea; }
+body[data-theme="muertos"] .papel-flag:nth-child(3) { background: #06b6d4; }
+body[data-theme="muertos"] .papel-flag:nth-child(4) { background: #ec4899; }
+body[data-theme="muertos"] .papel-flag:nth-child(5) { background: #eab308; }
+body[data-theme="muertos"] .papel-flag:nth-child(6) { background: #ff7700; }
+body[data-theme="muertos"] .papel-flag:nth-child(7) { background: #9333ea; }
+body[data-theme="muertos"] .papel-flag:nth-child(8) { background: #06b6d4; }
+
+body[data-theme="muertos"] .papel-flag:nth-child(1)::after { content: '💀'; }
+body[data-theme="muertos"] .papel-flag:nth-child(2)::after { content: '🌼'; }
+body[data-theme="muertos"] .papel-flag:nth-child(3)::after { content: '🕯️'; }
+body[data-theme="muertos"] .papel-flag:nth-child(4)::after { content: '💀'; }
+body[data-theme="muertos"] .papel-flag:nth-child(5)::after { content: '🏵️'; }
+body[data-theme="muertos"] .papel-flag:nth-child(6)::after { content: '🎸'; }
+body[data-theme="muertos"] .papel-flag:nth-child(7)::after { content: '💀'; }
+body[data-theme="muertos"] .papel-flag:nth-child(8)::after { content: '🌼'; }
+
+/* Muertos Panels / Altar Aesthetics */
+body[data-theme="muertos"] .welcome-card,
+body[data-theme="muertos"] .lobby-card,
+body[data-theme="muertos"] .caller-panel,
+body[data-theme="muertos"] .qr-card-panel {
+  background: rgba(22, 8, 32, 0.92);
+  border: 2px solid rgba(245, 158, 11, 0.5);
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.25), 0 0 50px rgba(168, 85, 247, 0.15), 0 16px 40px rgba(0, 0, 0, 0.8);
+}
+
+body[data-theme="muertos"] .welcome-card::before {
+  content: '💀 🌼 DÍA DE LOS MUERTOS • OFRENDA 🌼 💀';
+  display: block;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #fbbf24;
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.8);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed rgba(245, 158, 11, 0.45);
+}
+
+body[data-theme="muertos"] .btn-primary {
+  background: linear-gradient(135deg, #f59e0b 0%, #ec4899 50%, #9333ea 100%);
+  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.45), 0 0 12px rgba(236, 72, 153, 0.35);
+  border: 1px solid #fde047;
+}
+
+body[data-theme="muertos"] .btn-primary:hover {
+  box-shadow: 0 6px 24px rgba(245, 158, 11, 0.65), 0 0 20px rgba(236, 72, 153, 0.55);
+}
+
+/* Muertos Tabla Board Frame */
+body[data-theme="muertos"] .loteria-tabla {
+  background: radial-gradient(circle at center, #230d35 0%, #10031c 100%);
+  border: 4px solid #f59e0b;
+  box-shadow: 0 0 28px rgba(245, 158, 11, 0.35), 0 0 50px rgba(168, 85, 247, 0.25), 0 16px 36px rgba(0, 0, 0, 0.85), inset 0 0 16px rgba(245, 158, 11, 0.15);
+}
+
+body[data-theme="muertos"] .board-top-bar {
+  background: rgba(22, 7, 34, 0.9);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+/* Muertos Single Card on Board (Deep Obsidian Velvet + Calavera Watermark) */
+body[data-theme="muertos"] .tabla-card {
+  background: linear-gradient(145deg, #1b072c 0%, #0c0217 100%) !important;
+  border: 2px solid #f59e0b;
+  border-radius: 9px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7), 0 0 10px rgba(245, 158, 11, 0.25), inset 0 0 10px rgba(168, 85, 247, 0.2);
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+body[data-theme="muertos"] .tabla-card:hover {
+  border-color: #ec4899;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.8), 0 0 16px rgba(236, 72, 153, 0.5);
+}
+
+/* Sugar skull watermark inside every card */
+body[data-theme="muertos"] .tabla-card::before {
+  content: '💀';
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2.8rem;
+  opacity: 0.11;
+  pointer-events: none;
+  filter: drop-shadow(0 0 8px #ec4899);
+  user-select: none;
+}
+
+body[data-theme="muertos"] .tile-num {
+  color: #fbbf24;
+  text-shadow: 0 0 8px rgba(245, 158, 11, 0.8);
+  font-weight: 900;
+}
+
+body[data-theme="muertos"] .tile-art {
+  filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.45)) drop-shadow(0 4px 8px rgba(0,0,0,0.7));
+}
+
+body[data-theme="muertos"] .tile-name {
+  color: #fef08a;
+  border-top: 1px solid rgba(245, 158, 11, 0.45);
+  text-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+body[data-theme="muertos"] .tile-english {
+  color: #d8b4fe;
+  font-style: italic;
+}
+
+/* Muertos Big Caller Active Card */
+body[data-theme="muertos"] .active-card {
+  background: linear-gradient(150deg, #240a38 0%, #0b0214 100%);
+  border: 5px solid #f59e0b;
+  border-radius: 18px;
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.5), 0 0 60px rgba(217, 70, 239, 0.3), 0 16px 36px rgba(0,0,0,0.85);
+  position: relative;
+}
+
+body[data-theme="muertos"] .active-card::before {
+  content: '💀 OFRENDA SAGRADA 💀';
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #f59e0b;
+  color: #1a0826;
+  font-size: 0.68rem;
+  font-weight: 900;
+  padding: 2px 14px;
+  border-radius: 12px;
+  letter-spacing: 1.5px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+}
+
+body[data-theme="muertos"] .active-card .card-num {
+  color: #fbbf24;
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.8);
+}
+
+body[data-theme="muertos"] .active-card .card-art {
+  filter: drop-shadow(0 0 18px rgba(245, 158, 11, 0.5)) drop-shadow(0 6px 14px rgba(0,0,0,0.8));
+}
+
+body[data-theme="muertos"] .active-card .card-title {
+  color: #fef08a;
+  border-top: 2px solid #f59e0b;
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+
+body[data-theme="muertos"] .active-card .card-english {
+  color: #d8b4fe;
+}
+
+/* Muertos Custom Marker: Calavera de Azúcar (Sugar Skull + Marigold Flower) */
+body[data-theme="muertos"] .bean-token {
+  width: 40px;
+  height: 44px;
+  background: radial-gradient(circle at 50% 35%, #ffffff 0%, #f1f5f9 60%, #cbd5e1 100%);
+  border-radius: 46% 46% 42% 42% / 55% 55% 38% 38%;
+  border: 2px solid #f59e0b;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.75), 0 0 22px rgba(217, 70, 239, 0.5), 0 4px 10px rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translate(-50%, -50%) rotate(var(--bean-rot, 0deg));
+  animation: calaveraDrop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@media (max-width: 600px) {
+  body[data-theme="muertos"] .bean-token {
+    width: 28px;
+    height: 32px;
+  }
+}
+
+body[data-theme="muertos"] .bean-token::before {
+  content: '💀';
+  position: absolute;
+  font-size: 1.65rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 4px #ec4899);
+}
+
+@media (max-width: 600px) {
+  body[data-theme="muertos"] .bean-token::before {
+    font-size: 1.15rem;
+  }
+}
+
+body[data-theme="muertos"] .bean-token::after {
+  content: '🌼';
+  position: absolute;
+  top: -8px;
+  right: -7px;
+  width: auto;
+  height: auto;
+  background: none;
+  border-radius: 0;
+  font-size: 0.85rem;
+  filter: drop-shadow(0 0 5px #f59e0b);
+  animation: cempasuchilGlow 2s infinite alternate;
+}
+
+@media (max-width: 600px) {
+  body[data-theme="muertos"] .bean-token::after {
+    font-size: 0.65rem;
+    top: -5px;
+    right: -5px;
+  }
+}
+
+@keyframes calaveraDrop {
+  0% { transform: translate(-50%, -50%) scale(1.6) rotate(calc(var(--bean-rot, 0deg) + 20deg)); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(1) rotate(var(--bean-rot, 0deg)); opacity: 1; }
+}
+
+@keyframes cempasuchilGlow {
+  0% { transform: scale(1); filter: drop-shadow(0 0 3px #f59e0b); }
+  100% { transform: scale(1.15); filter: drop-shadow(0 0 8px #fbbf24); }
+}
+
+/* Muertos Winner Modal */
+body[data-theme="muertos"] .modal-content {
+  background: linear-gradient(145deg, #240a38 0%, #0e0216 100%);
+  border: 3px solid #f59e0b;
+  box-shadow: 0 0 35px rgba(245, 158, 11, 0.5), 0 0 60px rgba(217, 70, 239, 0.3);
+}
+
+
+/* ------------------------------------------------------------
+   3. VINTAGE FERIA 1950s (Aged Parchment, Corcholatas & Stamped Prints)
+   ------------------------------------------------------------ */
 body[data-theme="vintage"] {
-  background: radial-gradient(circle at top, #332317 0%, #17100b 100%);
+  background: radial-gradient(ellipse at 50% 0%, #3e2617 0%, #26150c 50%, #120905 100%);
   color: #f7ede2;
 }
+
 body[data-theme="vintage"] .app-header {
-  background: rgba(30, 20, 14, 0.9);
-  border-bottom: 1px solid rgba(212, 163, 115, 0.25);
+  background: rgba(30, 18, 12, 0.94);
+  border-bottom: 2px solid rgba(188, 108, 37, 0.4);
 }
+
 body[data-theme="vintage"] .logo-text h1 {
   background: linear-gradient(90deg, #dda15e, #bc6c25, #d4a373);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   font-family: var(--font-serif);
+  letter-spacing: 2px;
 }
+
+/* Vintage Papel Picado Flags & Colors */
 body[data-theme="vintage"] .papel-flag:nth-child(1) { background: #9e2a2b; }
 body[data-theme="vintage"] .papel-flag:nth-child(2) { background: #3a5a40; }
 body[data-theme="vintage"] .papel-flag:nth-child(3) { background: #bc6c25; }
@@ -1276,13 +1604,212 @@ body[data-theme="vintage"] .papel-flag:nth-child(5) { background: #582f0e; }
 body[data-theme="vintage"] .papel-flag:nth-child(6) { background: #9e2a2b; }
 body[data-theme="vintage"] .papel-flag:nth-child(7) { background: #3a5a40; }
 body[data-theme="vintage"] .papel-flag:nth-child(8) { background: #bc6c25; }
-body[data-theme="vintage"] .tabla-card {
-  filter: sepia(0.18) contrast(1.05);
-  border-color: #5c4033;
+
+body[data-theme="vintage"] .papel-flag:nth-child(1)::after { content: '🎪'; }
+body[data-theme="vintage"] .papel-flag:nth-child(2)::after { content: '🎟️'; }
+body[data-theme="vintage"] .papel-flag:nth-child(3)::after { content: '🎡'; }
+body[data-theme="vintage"] .papel-flag:nth-child(4)::after { content: '🪙'; }
+body[data-theme="vintage"] .papel-flag:nth-child(5)::after { content: '🎠'; }
+body[data-theme="vintage"] .papel-flag:nth-child(6)::after { content: '📜'; }
+body[data-theme="vintage"] .papel-flag:nth-child(7)::after { content: '🍿'; }
+body[data-theme="vintage"] .papel-flag:nth-child(8)::after { content: '🎯'; }
+
+/* Vintage Panels */
+body[data-theme="vintage"] .welcome-card,
+body[data-theme="vintage"] .lobby-card,
+body[data-theme="vintage"] .caller-panel,
+body[data-theme="vintage"] .qr-card-panel {
+  background: rgba(34, 20, 13, 0.92);
+  border: 2px solid #78350f;
+  box-shadow: inset 0 0 16px rgba(120, 53, 15, 0.25), 0 14px 34px rgba(0, 0, 0, 0.7);
 }
+
+body[data-theme="vintage"] .welcome-card::before {
+  content: '★ GRAN FERIA MEXICANA 1950 ★';
+  display: block;
+  text-align: center;
+  font-family: var(--font-serif);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #dda15e;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed rgba(188, 108, 37, 0.4);
+}
+
 body[data-theme="vintage"] .btn-primary {
-  background: linear-gradient(135deg, #bc6c25, #8c4316);
-  box-shadow: 0 4px 14px rgba(188, 108, 37, 0.35);
+  background: linear-gradient(135deg, #bc6c25, #78350f);
+  box-shadow: 0 4px 14px rgba(188, 108, 37, 0.4);
+  border: 1px solid #dda15e;
+}
+
+/* Vintage Tabla Board Frame (Rustic Walnut & Dashed Brass Stitching) */
+body[data-theme="vintage"] .loteria-tabla {
+  background: #25140b;
+  border: 5px solid #78350f;
+  outline: 2px dashed #b45309;
+  outline-offset: -7px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.8), inset 0 0 25px rgba(0, 0, 0, 0.7);
+}
+
+body[data-theme="vintage"] .board-top-bar {
+  background: rgba(36, 20, 12, 0.92);
+  border: 1px solid rgba(188, 108, 37, 0.35);
+}
+
+/* Vintage Cards: Aged Parchment Cardboard */
+body[data-theme="vintage"] .tabla-card {
+  background: #f7eedb !important;
+  border: 2.5px solid #582f0e;
+  border-radius: 4px;
+  box-shadow: inset 0 0 10px rgba(88, 47, 14, 0.25), 0 3px 8px rgba(0, 0, 0, 0.35);
+  filter: sepia(0.2) contrast(1.08);
+  position: relative;
+}
+
+body[data-theme="vintage"] .tabla-card:hover {
+  border-color: #bc6c25;
+  box-shadow: inset 0 0 12px rgba(188, 108, 37, 0.3), 0 5px 12px rgba(0, 0, 0, 0.45);
+}
+
+/* Corner registration stamp */
+body[data-theme="vintage"] .tabla-card::after {
+  content: '✦';
+  position: absolute;
+  bottom: 2px;
+  right: 3px;
+  font-size: 0.52rem;
+  color: rgba(88, 47, 14, 0.45);
+}
+
+body[data-theme="vintage"] .tile-num {
+  font-family: var(--font-serif);
+  color: #431407;
+  font-weight: 900;
+}
+
+body[data-theme="vintage"] .tile-name {
+  font-family: var(--font-serif);
+  color: #3b1904;
+  border-top: 1.5px solid #78350f;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+body[data-theme="vintage"] .tile-english {
+  color: #78350f;
+  font-family: var(--font-serif);
+}
+
+/* Vintage Big Caller Active Card */
+body[data-theme="vintage"] .active-card {
+  background: #faf2df;
+  border: 6px double #582f0e;
+  border-radius: 8px;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.7), inset 0 0 20px rgba(88, 47, 14, 0.2);
+  filter: sepia(0.18) contrast(1.06);
+  position: relative;
+}
+
+body[data-theme="vintage"] .active-card::before {
+  content: '★ FERIA POPULAR 1950 ★';
+  position: absolute;
+  top: -13px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #bc6c25;
+  color: #fff;
+  font-family: var(--font-serif);
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 14px;
+  border-radius: 4px;
+  border: 1px solid #582f0e;
+  letter-spacing: 1.5px;
+  white-space: nowrap;
+}
+
+body[data-theme="vintage"] .active-card .card-num {
+  font-family: var(--font-serif);
+  color: #431407;
+}
+
+body[data-theme="vintage"] .active-card .card-title {
+  font-family: var(--font-serif);
+  color: #3b1904;
+  border-top: 2px solid #582f0e;
+}
+
+body[data-theme="vintage"] .active-card .card-english {
+  color: #78350f;
+  font-family: var(--font-serif);
+}
+
+/* Vintage Custom Marker: Corcholata de Refresco / Stamped Brass Coin */
+body[data-theme="vintage"] .bean-token {
+  width: 36px;
+  height: 36px;
+  background: radial-gradient(circle at 35% 35%, #fde047 0%, #ca8a04 45%, #713f12 90%);
+  border-radius: 50%;
+  border: 2.5px dashed #854d0e;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.65), inset 0 2px 4px rgba(255, 255, 255, 0.5), inset 0 -2px 4px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translate(-50%, -50%) rotate(var(--bean-rot, 0deg));
+  animation: coinDrop 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@media (max-width: 600px) {
+  body[data-theme="vintage"] .bean-token {
+    width: 26px;
+    height: 26px;
+    border-width: 2px;
+  }
+}
+
+body[data-theme="vintage"] .bean-token::before {
+  content: '★';
+  position: absolute;
+  font-size: 1.15rem;
+  color: #582f0e;
+  text-shadow: 0 1px 1px rgba(254, 240, 138, 0.6), 0 -1px 1px rgba(0, 0, 0, 0.5);
+  font-weight: 900;
+  line-height: 1;
+}
+
+@media (max-width: 600px) {
+  body[data-theme="vintage"] .bean-token::before {
+    font-size: 0.82rem;
+  }
+}
+
+body[data-theme="vintage"] .bean-token::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+  background: none;
+  top: auto;
+  left: auto;
+  width: auto;
+  height: auto;
+}
+
+@keyframes coinDrop {
+  0% { transform: translate(-50%, -50%) scale(1.5) rotate(calc(var(--bean-rot, 0deg) - 45deg)); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(1) rotate(var(--bean-rot, 0deg)); opacity: 1; }
+}
+
+/* Vintage Winner Modal */
+body[data-theme="vintage"] .modal-content {
+  background: #f7eedb;
+  color: #3b1904;
+  border: 5px double #582f0e;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
 }
 
 /* ============================================================
