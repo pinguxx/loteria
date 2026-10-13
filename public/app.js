@@ -1,0 +1,902 @@
+// High-performance Native WebSocket Client for Rust Backend
+class RustLoteriaSocket {
+  constructor() {
+    this.handlers = {};
+    this.queue = [];
+    this.id = null;
+    this.connect();
+  }
+
+  connect() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    this.ws = new WebSocket(wsUrl);
+
+    this.ws.onopen = () => {
+      console.log('🦀 Connected to Rust WebSocket server!');
+      while (this.queue.length > 0) {
+        const item = this.queue.shift();
+        this.ws.send(item);
+      }
+      if (this.handlers['connect']) {
+        this.handlers['connect'].forEach(cb => cb());
+      }
+    };
+
+    this.ws.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        const eventName = payload.event;
+        const data = payload.data;
+        if (this.handlers[eventName]) {
+          this.handlers[eventName].forEach(cb => cb(data));
+        }
+      } catch (err) {
+        console.error('Error parsing WS message:', err);
+      }
+    };
+
+    this.ws.onclose = () => {
+      setTimeout(() => this.connect(), 2000);
+    };
+
+    this.ws.onerror = (err) => {
+      console.warn('WS error:', err);
+    };
+  }
+
+  on(eventName, callback) {
+    if (!this.handlers[eventName]) this.handlers[eventName] = [];
+    this.handlers[eventName].push(callback);
+  }
+
+  emit(type, data = {}) {
+    const msg = JSON.stringify({ type, ...data });
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(msg);
+    } else {
+      this.queue.push(msg);
+    }
+  }
+}
+
+let socket = null;
+let CARDS = [];
+let CARDS_MAP = new Map();
+
+// Internationalization (i18n)
+// Default language is English as requested
+let currentLang = localStorage.getItem('loteria_lang') || 'en';
+
+const TRANSLATIONS = {
+  en: {
+    appTitle: 'LOTERÍA',
+    appSubtitle: 'Online Multiplayer Game',
+    langButton: '🌐 Español',
+    tabCreate: 'Create Room',
+    tabJoin: 'Join Room',
+    labelName: 'Your Name or Nickname',
+    placeholderHost: 'e.g. Lucky Charlie',
+    placeholderGuest: 'e.g. Maria',
+    labelWinPattern: 'Winning Condition',
+    patternFull: '🏆 Full Board (all 16 cards)',
+    patternLine: '📏 Any Line (Row, Column, Diagonal)',
+    patternCorners: '📐 Four Corners',
+    patternCenter: '🎯 Center / Pot (2x2 center)',
+    labelCaller: 'Card Caller',
+    callerAuto: '⏱️ Automatic',
+    callerManual: '✋ Manual (Host calls)',
+    labelSpeed: 'Calling Speed',
+    speedFast: 'Fast (5 sec)',
+    speedNormal: 'Normal (7 sec)',
+    speedRelaxed: 'Relaxed (9 sec)',
+    speedChill: 'Chill / Plenty of Time (12 sec)',
+    labelVerseAudio: 'Read traditional verses aloud',
+    btnCreate: 'Create Room & Play!',
+    labelRoomCode: 'Room Code (5 letters)',
+    btnJoin: 'Enter Room!',
+    lobbyTitle: 'Waiting Lobby',
+    codeLabel: 'Code:',
+    btnCopy: 'Copy',
+    playersInRoom: 'Players in room',
+    btnStartGame: 'START GAME!',
+    waitingHost: 'Waiting for host to start the game...',
+    yourTabla: 'Your Board',
+    btnShuffle: '🔀 Shuffle Board',
+    shuffleHint: 'You can shuffle your board before the game starts until you like your cards.',
+    callerTitle: 'The Caller',
+    cardCounter: (cur, tot) => `Card ${cur} / ${tot}`,
+    waitingToStart: 'Waiting to start...',
+    shufflingDeck: '"Shuffling the deck of cards..."',
+    previousCards: 'Previous cards:',
+    noCardsYet: 'None yet',
+    btnNextCard: '👉 Next Card',
+    playersScoreboard: 'Players in game:',
+    roomTag: 'ROOM:',
+    beansPlaced: 'Beans placed:',
+    winnerTitle: '¡¡LOTERÍA!!',
+    btnPlayAgain: 'Play Another Round!',
+    waitingNextRound: 'Waiting for host to start another round...',
+    toastLinkCopied: 'Invite link copied to clipboard!',
+    toastCodeCopied: (code) => `Room code ${code} copied!`,
+    toastRoomCreated: (code) => `Room ${code} created successfully!`,
+    toastJoined: (code) => `Joined room ${code}!`,
+    toastNewTabla: 'New board generated!',
+    toastGameStarted: 'The game has started! Watch the caller!',
+    toastPaused: 'Caller paused',
+    toastResumed: 'Caller resumed',
+    toastSoundOn: 'Sound FX enabled',
+    toastSoundOff: 'Sound FX disabled',
+    toastSpeechOn: 'Voice caller enabled',
+    toastSpeechOff: 'Voice caller disabled',
+    toastDeckExhausted: 'No more cards left in the deck!',
+    toastFalseCall: "Wait! You haven't completed the winning pattern yet or marked uncalled cards.",
+    toastFalseClaimAlert: (name) => `${name} shouted Loteria but didn't have the full pattern yet! Game continues.`,
+    winsBadge: (w) => `🏆 ${w} win${w === 1 ? '' : 's'}`,
+    hostTag: 'Host',
+    youTag: '(You)'
+  },
+  es: {
+    appTitle: 'LOTERÍA',
+    appSubtitle: 'Mexicana Multijugador',
+    langButton: '🌐 English',
+    tabCreate: 'Crear Sala',
+    tabJoin: 'Unirse a Sala',
+    labelName: 'Tu Nombre o Apodo',
+    placeholderHost: 'Ej. Don Ferruco',
+    placeholderGuest: 'Ej. Josefita',
+    labelWinPattern: 'Modo de Ganar',
+    patternFull: '🏆 Tabla Llena (16 cartas)',
+    patternLine: '📏 Cualquier Línea (Horizontal, Vertical, Diagonal)',
+    patternCorners: '📐 Cuatro Esquinas',
+    patternCenter: '🎯 Centro / Pozo (2x2 central)',
+    labelCaller: 'El Cantor',
+    callerAuto: '⏱️ Automático',
+    callerManual: '✋ Manual (por Anfitrión)',
+    labelSpeed: 'Velocidad',
+    speedFast: 'Rápida (5 seg)',
+    speedNormal: 'Normal (7 seg)',
+    speedRelaxed: 'Tranquila (9 seg)',
+    speedChill: 'Pausa / Con tiempo (12 seg)',
+    labelVerseAudio: 'Cantar los versos tradicionales en voz alta',
+    btnCreate: '¡Crear Sala y Jugar!',
+    labelRoomCode: 'Código de Sala (5 letras)',
+    btnJoin: '¡Entrar a la Sala!',
+    lobbyTitle: 'Sala de Espera',
+    codeLabel: 'Código:',
+    btnCopy: 'Copiar',
+    playersInRoom: 'Jugadores en la sala',
+    btnStartGame: '¡COMENZAR PARTIDA!',
+    waitingHost: 'Esperando a que el anfitrión inicie la partida...',
+    yourTabla: 'Tu Tabla Asignada',
+    btnShuffle: '🔀 Cambiar Tabla',
+    shuffleHint: 'Puedes barajar tu tabla antes de que empiece la partida hasta que te guste tu suerte.',
+    callerTitle: 'El Cantor',
+    cardCounter: (cur, tot) => `Carta ${cur} / ${tot}`,
+    waitingToStart: 'Esperando...',
+    shufflingDeck: '"Barajando el mazo de cartas..."',
+    previousCards: 'Cartas anteriores:',
+    noCardsYet: 'Ninguna aún',
+    btnNextCard: '👉 Siguiente Carta',
+    playersScoreboard: 'Jugadores en la partida:',
+    roomTag: 'SALA:',
+    beansPlaced: 'Frijoles puestos:',
+    winnerTitle: '¡¡LOTERÍA!!',
+    btnPlayAgain: '¡Jugar Otra Ronda!',
+    waitingNextRound: 'Esperando a que el anfitrión comience otra ronda...',
+    toastLinkCopied: '¡Enlace de invitación copiado al portapapeles!',
+    toastCodeCopied: (code) => `Código ${code} copiado`,
+    toastRoomCreated: (code) => `¡Sala ${code} creada con éxito!`,
+    toastJoined: (code) => `¡Te has unido a la sala ${code}!`,
+    toastNewTabla: '¡Nueva tabla generada!',
+    toastGameStarted: '¡La partida ha comenzado! ¡Atentos al cantor!',
+    toastPaused: 'Cantor en pausa',
+    toastResumed: 'Cantor reanudado',
+    toastSoundOn: 'Sonidos FX activados',
+    toastSoundOff: 'Sonidos FX desactivados',
+    toastSpeechOn: 'Voz del Cantor activada',
+    toastSpeechOff: 'Voz del Cantor desactivada',
+    toastDeckExhausted: '¡Se acabaron las cartas del mazo!',
+    toastFalseCall: '¡Ojo! Aún no completas la figura requerida o marcaste cartas no cantadas.',
+    toastFalseClaimAlert: (name) => `¡${name} gritó Lotería pero aún no tenía la figura! Continúa el juego.`,
+    winsBadge: (w) => `🏆 ${w} victoria${w === 1 ? '' : 's'}`,
+    hostTag: 'Anfitrión',
+    youTag: '(Tú)'
+  }
+};
+
+// Local player state
+let myPlayer = {
+  id: null,
+  name: '',
+  tabla: [],
+  isHost: false
+};
+let currentRoomCode = '';
+let currentSettings = {
+  winPattern: 'full',
+  callerMode: 'auto',
+  speedSeconds: 7,
+  verseAudio: true
+};
+let myPlacedBeans = new Set();
+let isAudioMuted = false;
+let isSpeechMuted = false;
+let latestRoomData = null;
+
+// Screens dictionary
+const screens = {
+  welcome: document.getElementById('screen-welcome'),
+  lobby: document.getElementById('screen-lobby'),
+  game: document.getElementById('screen-game')
+};
+
+// Apply UI Language
+function applyLanguage(lang) {
+  currentLang = lang;
+  localStorage.setItem('loteria_lang', lang);
+  const t = TRANSLATIONS[lang] || TRANSLATIONS.en;
+
+  // Language button label
+  const langBtn = document.getElementById('btn-toggle-lang');
+  if (langBtn) langBtn.textContent = t.langButton;
+
+  // Text content elements with data-i18n
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if (t[key]) {
+      el.textContent = t[key];
+    }
+  });
+
+  // Placeholder inputs with data-i18n-ph
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    const key = el.dataset.i18nPh;
+    if (t[key]) {
+      el.placeholder = t[key];
+    }
+  });
+
+  // Select dropdown options
+  const patternSelect = document.getElementById('create-pattern');
+  if (patternSelect) {
+    patternSelect.options[0].text = t.patternFull;
+    patternSelect.options[1].text = t.patternLine;
+    patternSelect.options[2].text = t.patternCorners;
+    patternSelect.options[3].text = t.patternCenter;
+  }
+
+  const modeSelect = document.getElementById('create-mode');
+  if (modeSelect) {
+    modeSelect.options[0].text = t.callerAuto;
+    modeSelect.options[1].text = t.callerManual;
+  }
+
+  const speedSelect = document.getElementById('create-speed');
+  if (speedSelect) {
+    speedSelect.options[0].text = t.speedFast;
+    speedSelect.options[1].text = t.speedNormal;
+    speedSelect.options[2].text = t.speedRelaxed;
+    speedSelect.options[3].text = t.speedChill;
+  }
+
+  // Update rule badges
+  updateRuleBadges();
+
+  // If players list is currently displayed, re-render labels
+  if (latestRoomData) {
+    renderRoomPlayers(latestRoomData);
+  }
+}
+
+function updateRuleBadges() {
+  const t = TRANSLATIONS[currentLang] || TRANSLATIONS.en;
+  const patternMap = {
+    full: t.patternFull,
+    line: t.patternLine,
+    four_corners: t.patternCorners,
+    center: t.patternCenter
+  };
+  const patternText = patternMap[currentSettings.winPattern] || currentSettings.winPattern;
+  const lobbyBadge = document.getElementById('lobby-rule-badge');
+  const gameBadge = document.getElementById('game-rule-badge');
+  if (lobbyBadge) lobbyBadge.textContent = patternText;
+  if (gameBadge) gameBadge.textContent = patternText;
+}
+
+// Initialize Application
+async function init() {
+  // 1. Fetch Cards Dataset
+  try {
+    const res = await fetch('/api/cards');
+    CARDS = await res.json();
+    CARDS.forEach(c => CARDS_MAP.set(c.id, c));
+  } catch (err) {
+    console.error('Error fetching cards:', err);
+  }
+
+  // Apply chosen/default language
+  applyLanguage(currentLang);
+
+  // 2. Connect to Rust WebSocket backend
+  socket = new RustLoteriaSocket();
+  setupSocketListeners();
+  setupUIEventListeners();
+
+  // Check URL parameters for quick join: ?room=ABC12
+  const urlParams = new URLSearchParams(window.location.search);
+  const roomParam = urlParams.get('room');
+  if (roomParam) {
+    switchTab('join');
+    document.getElementById('join-code').value = roomParam.toUpperCase();
+  }
+}
+
+function showScreen(name) {
+  Object.values(screens).forEach(s => s.classList.remove('active'));
+  if (screens[name]) {
+    screens[name].classList.add('active');
+  }
+}
+
+function switchTab(tab) {
+  const tabCreate = document.getElementById('tab-create');
+  const tabJoin = document.getElementById('tab-join');
+  const formCreate = document.getElementById('form-create');
+  const formJoin = document.getElementById('form-join');
+
+  if (tab === 'create') {
+    tabCreate.classList.add('active');
+    tabJoin.classList.remove('active');
+    formCreate.style.display = 'block';
+    formJoin.style.display = 'none';
+  } else {
+    tabJoin.classList.add('active');
+    tabCreate.classList.remove('active');
+    formJoin.style.display = 'block';
+    formCreate.style.display = 'none';
+  }
+}
+
+// Show Toast Message
+function showToast(message, isWarning = false) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${isWarning ? 'warning' : ''}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(-15px)';
+    toast.style.transition = 'all 0.3s ease';
+    setTimeout(() => toast.remove(), 300);
+  }, 3500);
+}
+
+// Render a 4x4 Tabla Grid into a container element
+function renderTabla(containerElement, cardIds, isInteractive = false, markedIndices = new Set()) {
+  containerElement.innerHTML = '';
+
+  cardIds.forEach((cardId, index) => {
+    const card = CARDS_MAP.get(cardId);
+    if (!card) return;
+
+    const tile = document.createElement('div');
+    tile.className = 'tabla-card';
+    tile.dataset.index = index;
+    tile.dataset.cardId = cardId;
+    tile.style.backgroundColor = card.color || '#fffbeb';
+
+    // Random slight rotation for bean if marked
+    const beanRotation = ((index * 37) % 60) - 30;
+
+    tile.innerHTML = `
+      <div class="tile-num">${card.id}</div>
+      <div class="tile-art">${card.emoji}</div>
+      <div class="tile-name" title="${card.name}">${card.name}</div>
+      <div class="tile-english" title="${card.english}">${card.english}</div>
+      ${markedIndices.has(index) ? `<div class="bean-token" style="--bean-rot: ${beanRotation}deg;"></div>` : ''}
+    `;
+
+    if (isInteractive) {
+      tile.addEventListener('click', () => {
+        handleTileClick(index);
+      });
+    }
+
+    containerElement.appendChild(tile);
+  });
+}
+
+// Handle placing / removing a bean token on the game board
+function handleTileClick(index) {
+  if (myPlacedBeans.has(index)) {
+    myPlacedBeans.delete(index);
+    window.loteriaAudio.playBeanRemove();
+  } else {
+    myPlacedBeans.add(index);
+    window.loteriaAudio.playBeanPop();
+  }
+
+  // Update DOM tile directly
+  const gameTabla = document.getElementById('game-tabla');
+  const tile = gameTabla.children[index];
+  if (tile) {
+    const existingBean = tile.querySelector('.bean-token');
+    if (myPlacedBeans.has(index)) {
+      if (!existingBean) {
+        const bean = document.createElement('div');
+        bean.className = 'bean-token';
+        const rot = ((index * 37) % 60) - 30;
+        bean.style.setProperty('--bean-rot', `${rot}deg`);
+        tile.appendChild(bean);
+      }
+    } else {
+      if (existingBean) existingBean.remove();
+    }
+  }
+
+  // Update bean counter badge
+  document.getElementById('bean-count-badge').textContent = `${myPlacedBeans.size} / 16`;
+
+  // Tell server so other players see our beans count on the live scoreboard
+  if (socket && currentRoomCode) {
+    socket.emit('toggle_bean', {
+      roomCode: currentRoomCode,
+      cardIndex: index
+    });
+  }
+}
+
+// Floating Emoji Animation
+function spawnFloatingEmoji(emoji) {
+  const el = document.createElement('div');
+  el.className = 'floating-emoji';
+  el.textContent = emoji;
+
+  const leftPos = Math.floor(Math.random() * 70) + 15;
+  el.style.left = `${leftPos}%`;
+
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2600);
+}
+
+// Confetti burst animation
+function launchConfetti() {
+  if (typeof confetti === 'function') {
+    confetti({
+      particleCount: 120,
+      spread: 90,
+      origin: { y: 0.6 }
+    });
+    setTimeout(() => {
+      confetti({
+        particleCount: 80,
+        angle: 60,
+        spread: 70,
+        origin: { x: 0 }
+      });
+      confetti({
+        particleCount: 80,
+        angle: 120,
+        spread: 70,
+        origin: { x: 1 }
+      });
+    }, 400);
+  }
+}
+
+// Render room player lists
+function renderRoomPlayers(data) {
+  const t = TRANSLATIONS[currentLang] || TRANSLATIONS.en;
+  const playersListEl = document.getElementById('lobby-players-list');
+  document.getElementById('lobby-player-count').textContent = data.players.length;
+  playersListEl.innerHTML = '';
+
+  data.players.forEach(p => {
+    const item = document.createElement('div');
+    item.className = `player-item ${p.id === socket.id ? 'is-me' : ''}`;
+    item.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span>👤</span>
+        <strong>${p.name}</strong>
+        ${p.id === socket.id ? `<span style="font-size: 0.75rem; color: #f59e0b;">${t.youTag}</span>` : ''}
+        ${p.isHost ? `<span class="host-tag">${t.hostTag}</span>` : ''}
+      </div>
+      <div style="font-size: 0.85rem; color: #cbd5e1;">
+        ${t.winsBadge(p.wins)}
+      </div>
+    `;
+    playersListEl.appendChild(item);
+  });
+
+  const scoreboardEl = document.getElementById('game-scoreboard-chips');
+  scoreboardEl.innerHTML = '';
+  data.players.forEach(p => {
+    const chip = document.createElement('div');
+    chip.className = `player-chip ${p.id === socket.id ? 'is-me' : ''}`;
+    chip.innerHTML = `
+      <strong>${p.name}</strong>: 🫘 ${p.beansCount}
+    `;
+    scoreboardEl.appendChild(chip);
+  });
+}
+
+// Socket Listeners Setup
+function setupSocketListeners() {
+  const t = () => TRANSLATIONS[currentLang] || TRANSLATIONS.en;
+
+  // 1. Room Created
+  socket.on('room_created', ({ roomCode, isHost, player }) => {
+    socket.id = player.id;
+    currentRoomCode = roomCode;
+    myPlayer = { ...player, isHost };
+    document.getElementById('lobby-room-code').textContent = roomCode;
+    document.getElementById('game-room-code-tag').textContent = roomCode;
+
+    document.getElementById('lobby-host-controls').style.display = 'block';
+    document.getElementById('lobby-guest-msg').style.display = 'none';
+
+    renderTabla(document.getElementById('preview-tabla'), myPlayer.tabla);
+    showScreen('lobby');
+    showToast(t().toastRoomCreated(roomCode));
+  });
+
+  // 2. Joined Room
+  socket.on('joined_room', ({ roomCode, isHost, player }) => {
+    socket.id = player.id;
+    currentRoomCode = roomCode;
+    myPlayer = { ...player, isHost };
+    document.getElementById('lobby-room-code').textContent = roomCode;
+    document.getElementById('game-room-code-tag').textContent = roomCode;
+
+    if (isHost) {
+      document.getElementById('lobby-host-controls').style.display = 'block';
+      document.getElementById('lobby-guest-msg').style.display = 'none';
+    } else {
+      document.getElementById('lobby-host-controls').style.display = 'none';
+      document.getElementById('lobby-guest-msg').style.display = 'block';
+    }
+
+    renderTabla(document.getElementById('preview-tabla'), myPlayer.tabla);
+    showScreen('lobby');
+    showToast(t().toastJoined(roomCode));
+  });
+
+  // 3. Join Error
+  socket.on('join_error', ({ message }) => {
+    showToast(message, true);
+  });
+
+  // 4. Tabla Updated (Shuffle)
+  socket.on('tabla_updated', ({ tabla }) => {
+    myPlayer.tabla = tabla;
+    renderTabla(document.getElementById('preview-tabla'), tabla);
+    showToast(t().toastNewTabla);
+  });
+
+  // 5. Room State Sync
+  socket.on('room_state', (data) => {
+    latestRoomData = data;
+    currentSettings = data.settings;
+    const isHost = data.hostId === socket.id;
+    myPlayer.isHost = isHost;
+
+    updateRuleBadges();
+    renderRoomPlayers(data);
+
+    // Host controls visibility
+    if (isHost) {
+      document.getElementById('lobby-host-controls').style.display = 'block';
+      document.getElementById('lobby-guest-msg').style.display = 'none';
+      document.getElementById('host-game-controls').style.display = 'flex';
+      document.getElementById('winner-host-actions').style.display = 'block';
+      document.getElementById('winner-guest-msg').style.display = 'none';
+    } else {
+      document.getElementById('lobby-host-controls').style.display = 'none';
+      document.getElementById('lobby-guest-msg').style.display = 'block';
+      document.getElementById('host-game-controls').style.display = 'none';
+      document.getElementById('winner-host-actions').style.display = 'none';
+      document.getElementById('winner-guest-msg').style.display = 'block';
+    }
+
+    // Card drawn counter
+    document.getElementById('game-cards-left').textContent = t().cardCounter(data.drawnCount, data.totalCards);
+  });
+
+  // 6. Game Started
+  socket.on('game_started', () => {
+    myPlacedBeans.clear();
+    document.getElementById('bean-count-badge').textContent = '0 / 16';
+    // Reset Mobile Caller Strip
+    const mName = document.getElementById('mobile-card-name');
+    if (mName) mName.textContent = t().waitingToStart;
+    const mEng = document.getElementById('mobile-card-english');
+    if (mEng) mEng.textContent = 'Mexican Loteria';
+    const mNum = document.getElementById('mobile-card-num');
+    if (mNum) mNum.textContent = '--';
+    const mArt = document.getElementById('mobile-card-art');
+    if (mArt) mArt.textContent = '🎴';
+    const mBadge = document.getElementById('mobile-card-badge');
+    if (mBadge) mBadge.style.backgroundColor = '#fffbeb';
+    const mCount = document.getElementById('mobile-cards-left');
+    if (mCount) mCount.textContent = '0/54';
+    const mVerseEs = document.getElementById('mobile-verse-es');
+    if (mVerseEs) mVerseEs.textContent = t().shufflingDeck;
+    const mVerseEn = document.getElementById('mobile-verse-en');
+    if (mVerseEn) mVerseEn.textContent = '';
+
+    // Render interactive tabla for the player
+    renderTabla(document.getElementById('game-tabla'), myPlayer.tabla, true, myPlacedBeans);
+
+    showScreen('game');
+    showToast(t().toastGameStarted);
+  });
+
+  // 7. Card Drawn
+  socket.on('card_drawn', ({ card, drawnCount, recentCards }) => {
+    const activeCardEl = document.getElementById('active-card');
+    if (activeCardEl) {
+      activeCardEl.classList.remove('pop-in');
+      void activeCardEl.offsetWidth; // Trigger reflow for animation restart
+      activeCardEl.classList.add('pop-in');
+    }
+
+    // Update Desktop Card UI
+    document.getElementById('active-card-num').textContent = card.id;
+    document.getElementById('active-card-art').textContent = card.emoji;
+    document.getElementById('active-card-name').textContent = card.name;
+    document.getElementById('active-card-english').textContent = card.english;
+    
+    // Update phrase in Spanish and English translation
+    const verseEsEl = document.getElementById('active-verse-es');
+    const verseEnEl = document.getElementById('active-verse-en');
+    if (verseEsEl && verseEnEl) {
+      verseEsEl.textContent = `"${card.verse}"`;
+      verseEnEl.textContent = card.verseEnglish ? `"${card.verseEnglish}"` : '';
+    } else {
+      document.getElementById('active-card-verse').innerHTML = `
+        <div class="verse-spanish">"${card.verse}"</div>
+        <div class="verse-english">"${card.verseEnglish || ''}"</div>
+      `;
+    }
+    if (activeCardEl) activeCardEl.style.backgroundColor = card.color || '#fffbeb';
+
+    // Update Mobile Caller Strip UI (docked above board)
+    const mobileBadge = document.getElementById('mobile-card-badge');
+    if (mobileBadge) mobileBadge.style.backgroundColor = card.color || '#fffbeb';
+    const mobNum = document.getElementById('mobile-card-num');
+    if (mobNum) mobNum.textContent = card.id;
+    const mobArt = document.getElementById('mobile-card-art');
+    if (mobArt) mobArt.textContent = card.emoji;
+    const mobName = document.getElementById('mobile-card-name');
+    if (mobName) mobName.textContent = card.name;
+    const mobEng = document.getElementById('mobile-card-english');
+    if (mobEng) mobEng.textContent = card.english;
+    const mobCount = document.getElementById('mobile-cards-left');
+    if (mobCount) mobCount.textContent = `${drawnCount}/54`;
+    const mobVerseEs = document.getElementById('mobile-verse-es');
+    if (mobVerseEs) mobVerseEs.textContent = `"${card.verse}"`;
+    const mobVerseEn = document.getElementById('mobile-verse-en');
+    if (mobVerseEn) mobVerseEn.textContent = card.verseEnglish ? `"${card.verseEnglish}"` : '';
+
+    // Play chime sound
+    window.loteriaAudio.playCardChime();
+
+    // Voice announcement (Speech Synthesis)
+    // Speaks at comfortable 0.95x rate
+    if (currentSettings.verseAudio) {
+      window.loteriaAudio.speakCard(card.name, card.verse, card.english, card.verseEnglish, false);
+    } else {
+      window.loteriaAudio.speakCard(card.name, null, card.english, null, false);
+    }
+
+    // Update history reel
+    const tray = document.getElementById('history-tray');
+    tray.innerHTML = '';
+    recentCards.forEach(cid => {
+      const c = CARDS_MAP.get(cid);
+      if (!c) return;
+      const mini = document.createElement('div');
+      mini.className = 'history-card-mini';
+      mini.title = `${c.id}. ${c.name} (${c.english})`;
+      mini.style.backgroundColor = c.color || '#fffbeb';
+      mini.innerHTML = `
+        <span class="mini-num">${c.id}</span>
+        <span>${c.emoji}</span>
+      `;
+      tray.appendChild(mini);
+    });
+  });
+
+  // 8. False Loteria penalty/alert
+  socket.on('false_loteria', ({ message }) => {
+    window.loteriaAudio.playBuzzer();
+    showToast(t().toastFalseCall, true);
+  });
+
+  socket.on('false_claim_alert', ({ playerName }) => {
+    showToast(t().toastFalseClaimAlert(playerName), true);
+  });
+
+  // 9. Legitimate Winner Announcement
+  socket.on('loteria_winner', ({ winner, message }) => {
+    window.loteriaAudio.playFanfare();
+    launchConfetti();
+
+    document.getElementById('winner-message').textContent = message;
+
+    // Render winner's tabla preview
+    const winContainer = document.getElementById('winner-tabla-preview');
+    renderTabla(winContainer, winner.tabla);
+
+    document.getElementById('winner-modal').classList.add('active');
+  });
+
+  // 10. Floating Reactions
+  socket.on('new_reaction', ({ emoji, sender }) => {
+    spawnFloatingEmoji(emoji);
+  });
+
+  // 11. Deck Exhausted without winner
+  socket.on('deck_exhausted', ({ message }) => {
+    showToast(t().toastDeckExhausted, true);
+  });
+}
+
+// UI Event Listeners
+function setupUIEventListeners() {
+  const t = () => TRANSLATIONS[currentLang] || TRANSLATIONS.en;
+
+  // Mobile Drawer Toggle (Recent cards & Host controls on small screens)
+  const drawerBtn = document.getElementById('btn-toggle-mobile-drawer');
+  if (drawerBtn) {
+    drawerBtn.addEventListener('click', () => {
+      const panel = document.getElementById('caller-panel');
+      if (panel) {
+        panel.classList.toggle('drawer-open');
+        drawerBtn.textContent = panel.classList.contains('drawer-open') ? '✖️' : '📜';
+      }
+    });
+  }
+
+  // Language Switcher Toggle
+  document.getElementById('btn-toggle-lang').addEventListener('click', () => {
+    const nextLang = currentLang === 'en' ? 'es' : 'en';
+    applyLanguage(nextLang);
+    showToast(nextLang === 'en' ? 'Interface switched to English' : 'Interfaz cambiada a Español');
+  });
+
+  // Tabs
+  document.getElementById('tab-create').addEventListener('click', () => switchTab('create'));
+  document.getElementById('tab-join').addEventListener('click', () => switchTab('join'));
+
+  // Toggle mode showing/hiding speed dropdown
+  document.getElementById('create-mode').addEventListener('change', (e) => {
+    document.getElementById('speed-group').style.display = e.target.value === 'auto' ? 'block' : 'none';
+  });
+
+  // Form Create Room
+  document.getElementById('form-create').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = document.getElementById('create-name').value;
+    const winPattern = document.getElementById('create-pattern').value;
+    const callerMode = document.getElementById('create-mode').value;
+    const speedSeconds = parseInt(document.getElementById('create-speed').value, 10) || 7;
+    const verseAudio = document.getElementById('create-verse-audio').checked;
+
+    socket.emit('create_room', {
+      playerName: name,
+      settings: { winPattern, callerMode, speedSeconds, verseAudio }
+    });
+  });
+
+  // Form Join Room
+  document.getElementById('form-join').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = document.getElementById('join-name').value;
+    const roomCode = document.getElementById('join-code').value.toUpperCase().trim();
+
+    if (!roomCode) return;
+    socket.emit('join_room', {
+      playerName: name,
+      roomCode
+    });
+  });
+
+  // Copy Room Code / Share Link
+  document.getElementById('btn-copy-code').addEventListener('click', () => {
+    const url = `${window.location.origin}?room=${currentRoomCode}`;
+    navigator.clipboard.writeText(url).then(() => {
+      showToast(t().toastLinkCopied);
+    }).catch(() => {
+      navigator.clipboard.writeText(currentRoomCode);
+      showToast(t().toastCodeCopied(currentRoomCode));
+    });
+  });
+
+  // Shuffle My Tabla (in lobby)
+  document.getElementById('btn-shuffle-tabla').addEventListener('click', () => {
+    if (socket && currentRoomCode) {
+      socket.emit('shuffle_tabla', { roomCode: currentRoomCode });
+    }
+  });
+
+  // Start Game Button (Host)
+  document.getElementById('btn-start-game').addEventListener('click', () => {
+    if (socket && currentRoomCode) {
+      socket.emit('start_game', { roomCode: currentRoomCode });
+    }
+  });
+
+  // Manual Next Card (Host)
+  document.getElementById('btn-manual-draw').addEventListener('click', () => {
+    if (socket && currentRoomCode) {
+      socket.emit('manual_draw', { roomCode: currentRoomCode });
+    }
+  });
+
+  // Pause / Resume Auto Caller (Host)
+  const pauseBtn = document.getElementById('btn-toggle-pause');
+  pauseBtn.addEventListener('click', () => {
+    if (socket && currentRoomCode) {
+      socket.emit('toggle_pause', { roomCode: currentRoomCode });
+    }
+  });
+
+  socket.on('game_paused', ({ isPaused }) => {
+    pauseBtn.textContent = isPaused ? '▶️' : '⏸️';
+    showToast(isPaused ? t().toastPaused : t().toastResumed);
+  });
+
+  // Claim ¡LOTERÍA! Button
+  document.getElementById('btn-claim-loteria').addEventListener('click', () => {
+    if (socket && currentRoomCode) {
+      socket.emit('claim_loteria', { roomCode: currentRoomCode });
+    }
+  });
+
+  // Restart Round / Play Again Button (Host)
+  document.getElementById('btn-restart-round').addEventListener('click', () => {
+    if (socket && currentRoomCode) {
+      document.getElementById('winner-modal').classList.remove('active');
+      socket.emit('restart_round', { roomCode: currentRoomCode });
+    }
+  });
+
+  // Reaction Buttons
+  document.querySelectorAll('.reaction-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const emoji = btn.dataset.emoji;
+      if (socket && currentRoomCode) {
+        socket.emit('send_reaction', {
+          roomCode: currentRoomCode,
+          emoji,
+          playerName: myPlayer.name
+        });
+      }
+    });
+  });
+
+  // Sound Effects Toggle
+  const sndBtn = document.getElementById('btn-toggle-sound');
+  sndBtn.addEventListener('click', () => {
+    isAudioMuted = !isAudioMuted;
+    window.loteriaAudio.enabled = !isAudioMuted;
+    sndBtn.textContent = isAudioMuted ? '🔇' : '🔊';
+    showToast(isAudioMuted ? t().toastSoundOff : t().toastSoundOn);
+  });
+
+  // Speech Toggle
+  const spkBtn = document.getElementById('btn-toggle-speech');
+  spkBtn.addEventListener('click', () => {
+    isSpeechMuted = !isSpeechMuted;
+    window.loteriaAudio.speechEnabled = !isSpeechMuted;
+    spkBtn.textContent = isSpeechMuted ? '🤐' : '🗣️';
+    showToast(isSpeechMuted ? t().toastSpeechOff : t().toastSpeechOn);
+  });
+}
+
+// Start app
+window.addEventListener('DOMContentLoaded', init);

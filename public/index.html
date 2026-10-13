@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>¡Lotería Mexicana Online!</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Playfair+Display:ital,wght@0,700;0,900;1,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Papel Picado Festive Banner -->
+  <div class="papel-picado">
+    <div class="papel-flag"></div>
+    <div class="papel-flag"></div>
+    <div class="papel-flag"></div>
+    <div class="papel-flag"></div>
+    <div class="papel-flag"></div>
+    <div class="papel-flag"></div>
+    <div class="papel-flag"></div>
+    <div class="papel-flag"></div>
+  </div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="logo-container">
+      <span class="logo-badge">🎴</span>
+      <div class="logo-text">
+        <h1>LOTERÍA</h1>
+        <span data-i18n="appSubtitle">Online Multiplayer Game</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <!-- Language Switcher Toggle (Defaults to English) -->
+      <button id="btn-toggle-lang" class="btn-icon" style="width: auto; padding: 0 12px; border-radius: 18px; font-weight: 800; font-size: 0.82rem;" title="Switch Language / Cambiar Idioma">🌐 Español</button>
+      <button id="btn-toggle-sound" class="btn-icon" title="Sound Effects">🔊</button>
+      <button id="btn-toggle-speech" class="btn-icon" title="Voice Caller">🗣️</button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="container">
+
+    <!-- 1. WELCOME / JOIN SCREEN -->
+    <section id="screen-welcome" class="screen active">
+      <div class="welcome-card">
+        <div class="tabs">
+          <button class="tab-btn active" id="tab-create" data-i18n="tabCreate">Create Room</button>
+          <button class="tab-btn" id="tab-join" data-i18n="tabJoin">Join Room</button>
+        </div>
+
+        <!-- Create Form -->
+        <form id="form-create">
+          <div class="form-group">
+            <label for="create-name" data-i18n="labelName">Your Name or Nickname</label>
+            <input type="text" id="create-name" class="form-control" placeholder="e.g. Lucky Charlie" data-i18n-ph="placeholderHost" maxlength="18" required autofocus>
+          </div>
+
+          <div class="form-group">
+            <label for="create-pattern" data-i18n="labelWinPattern">Winning Condition</label>
+            <select id="create-pattern" class="form-control">
+              <option value="full">🏆 Full Board (all 16 cards)</option>
+              <option value="line">📏 Any Line (Row, Column, Diagonal)</option>
+              <option value="four_corners">📐 Four Corners</option>
+              <option value="center">🎯 Center / Pot (2x2 center)</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="flex: 1;">
+              <label for="create-mode" data-i18n="labelCaller">Card Caller</label>
+              <select id="create-mode" class="form-control">
+                <option value="auto">⏱️ Automatic</option>
+                <option value="manual">✋ Manual (Host calls)</option>
+              </select>
+            </div>
+            <div class="form-group" id="speed-group" style="flex: 1;">
+              <label for="create-speed" data-i18n="labelSpeed">Calling Speed</label>
+              <select id="create-speed" class="form-control">
+                <option value="5">Fast (5 sec)</option>
+                <option value="7" selected>Normal (7 sec)</option>
+                <option value="9">Relaxed (9 sec)</option>
+                <option value="12">Chill / Plenty of Time (12 sec)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 10px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; text-transform: none; color: #e2e8f0;">
+              <input type="checkbox" id="create-verse-audio" checked style="width: 18px; height: 18px; accent-color: #e11d48;">
+              <span data-i18n="labelVerseAudio">Read traditional verses aloud</span>
+            </label>
+          </div>
+
+          <button type="submit" class="btn-primary" style="margin-top: 14px;" data-i18n="btnCreate">Create Room & Play!</button>
+        </form>
+
+        <!-- Join Form -->
+        <form id="form-join" style="display: none;">
+          <div class="form-group">
+            <label for="join-name" data-i18n="labelName">Your Name or Nickname</label>
+            <input type="text" id="join-name" class="form-control" placeholder="e.g. Maria" data-i18n-ph="placeholderGuest" maxlength="18" required>
+          </div>
+
+          <div class="form-group">
+            <label for="join-code" data-i18n="labelRoomCode">Room Code (5 letters)</label>
+            <input type="text" id="join-code" class="form-control" placeholder="e.g. ABC12" maxlength="5" style="text-transform: uppercase; font-weight: 800; letter-spacing: 3px;" required>
+          </div>
+
+          <button type="submit" class="btn-primary" style="margin-top: 14px;" data-i18n="btnJoin">Enter Room!</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- 2. LOBBY SCREEN -->
+    <section id="screen-lobby" class="screen">
+      <div class="lobby-header">
+        <h2 style="font-size: 1.5rem; font-weight: 800;" data-i18n="lobbyTitle">Waiting Lobby</h2>
+        <div class="room-badge">
+          <span data-i18n="codeLabel">Code:</span>
+          <span id="lobby-room-code" class="room-code-display">-----</span>
+          <button id="btn-copy-code" class="copy-btn" data-i18n="btnCopy">Copy</button>
+        </div>
+      </div>
+
+      <div class="lobby-grid">
+        <!-- Players in Lobby -->
+        <div class="card-panel">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="color: #fbbf24; font-size: 1.1rem;"><span data-i18n="playersInRoom">Players in room</span> (<span id="lobby-player-count">0</span>)</h3>
+            <span id="lobby-rule-badge" class="rule-badge">Full Board</span>
+          </div>
+
+          <div id="lobby-players-list" class="players-list">
+            <!-- Rendered dynamically -->
+          </div>
+
+          <!-- Host controls in lobby -->
+          <div id="lobby-host-controls" style="margin-top: 24px; display: none;">
+            <button id="btn-start-game" class="btn-primary" style="font-size: 1.25rem;" data-i18n="btnStartGame">START GAME!</button>
+          </div>
+          <div id="lobby-guest-msg" style="margin-top: 20px; text-align: center; color: #94a3b8; font-style: italic;" data-i18n="waitingHost">
+            Waiting for host to start the game...
+          </div>
+        </div>
+
+        <!-- My Tabla Preview -->
+        <div class="card-panel" style="text-align: center;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 style="color: #fbbf24; font-size: 1.1rem;" data-i18n="yourTabla">Your Board</h3>
+            <button id="btn-shuffle-tabla" class="btn-secondary" style="font-size: 0.85rem; padding: 6px 12px;" data-i18n="btnShuffle">🔀 Shuffle Board</button>
+          </div>
+          <p style="font-size: 0.8rem; color: #cbd5e1; margin-bottom: 12px;" data-i18n="shuffleHint">You can shuffle your board before the game starts until you like your cards.</p>
+          <div class="tabla-container">
+            <div id="preview-tabla" class="loteria-tabla" style="max-width: 380px;">
+              <!-- 4x4 preview tiles -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. LIVE GAME SCREEN -->
+    <section id="screen-game" class="screen">
+
+      <!-- MOBILE STICKY CALLER STRIP (Docked right above board on mobile) -->
+      <div id="mobile-caller-strip" class="mobile-caller-strip">
+        <div id="mobile-card-badge" class="mobile-card-badge">
+          <span id="mobile-card-num" class="mobile-badge-num">--</span>
+          <span id="mobile-card-art" class="mobile-badge-art">🎴</span>
+        </div>
+        <div class="mobile-card-text">
+          <div class="mobile-card-heading">
+            <strong id="mobile-card-name">Waiting...</strong>
+            <span id="mobile-card-english">Mexican Loteria</span>
+            <span id="mobile-cards-left" class="count-pill">0/54</span>
+          </div>
+          <div id="mobile-verse-es" class="mobile-verse-es">"Barajando el mazo de cartas..."</div>
+          <div id="mobile-verse-en" class="mobile-verse-en">"Shuffling the deck of cards..."</div>
+        </div>
+        <button id="btn-toggle-mobile-drawer" class="mobile-drawer-btn" title="Recent Cards & Controls">📜</button>
+      </div>
+
+      <div class="game-layout">
+
+        <!-- Left / Top: Caller Panel ("El Cantor") -->
+        <div id="caller-panel" class="caller-panel">
+          <div class="caller-header">
+            <div>
+              <span style="font-size: 0.8rem; color: #cbd5e1; text-transform: uppercase; font-weight: 700;" data-i18n="callerTitle">The Caller</span>
+              <div id="game-cards-left" style="font-size: 0.8rem; color: #fbbf24;">Card 0 / 54</div>
+            </div>
+            <div id="game-rule-badge" class="rule-badge">Full Board</div>
+          </div>
+
+          <!-- Active Card Frame -->
+          <div class="active-card-wrapper">
+            <div id="active-card" class="active-card">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span id="active-card-num" class="card-num">--</span>
+                <span style="font-size: 0.85rem; font-weight: 800; color: #78716c;">LOTERÍA</span>
+              </div>
+              <div id="active-card-art" class="card-art">🎴</div>
+              <div>
+                <div id="active-card-name" class="card-title" data-i18n="waitingToStart">Waiting...</div>
+                <div id="active-card-english" class="card-english">Mexican Loteria</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Riddle verse box with Spanish & English translation -->
+          <div id="active-card-verse" class="verse-box">
+            <div id="active-verse-es" class="verse-spanish">"Barajando el mazo de cartas..."</div>
+            <div id="active-verse-en" class="verse-english">"Shuffling the deck of cards..."</div>
+          </div>
+
+          <!-- History of called cards -->
+          <div>
+            <div class="history-title" data-i18n="previousCards">Previous cards:</div>
+            <div id="history-tray" class="history-tray">
+              <div style="color: #64748b; font-size: 0.8rem; padding: 10px;" data-i18n="noCardsYet">None yet</div>
+            </div>
+          </div>
+
+          <!-- Host In-Game Controls -->
+          <div id="host-game-controls" class="host-controls" style="display: none;">
+            <button id="btn-manual-draw" class="btn-primary" style="flex: 1; padding: 10px; font-size: 0.95rem;" data-i18n="btnNextCard">👉 Next Card</button>
+            <button id="btn-toggle-pause" class="btn-secondary" style="padding: 10px 14px;">⏸️</button>
+          </div>
+
+          <!-- Scoreboard chips -->
+          <div class="game-scoreboard">
+            <div class="game-scoreboard-title" data-i18n="playersScoreboard">Players in game:</div>
+            <div id="game-scoreboard-chips" class="scoreboard-chips">
+              <!-- Live chips showing bean count per player -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Right / Bottom: Player's Interactive Tabla -->
+        <div class="board-panel">
+          <div class="board-top-bar">
+            <div>
+              <span style="font-size: 0.8rem; color: #94a3b8;" data-i18n="roomTag">ROOM:</span>
+              <strong id="game-room-code-tag" style="color: #fde047; letter-spacing: 2px; margin-left: 4px;">ABC12</strong>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 0.85rem; color: #cbd5e1;" data-i18n="beansPlaced">Beans placed:</span>
+              <span id="bean-count-badge" style="background: #54220c; border: 1px solid #8d4925; color: #fef08a; padding: 2px 10px; border-radius: 12px; font-weight: 800;">0 / 16</span>
+            </div>
+          </div>
+
+          <!-- The 4x4 Grid -->
+          <div class="tabla-container">
+            <div id="game-tabla" class="loteria-tabla">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- Big ¡LOTERÍA! Call Button -->
+          <div class="claim-loteria-container">
+            <button id="btn-claim-loteria" class="btn-loteria">
+              ¡LOTERÍA! 🫘
+            </button>
+          </div>
+
+          <!-- Floating Emoji Reactions -->
+          <div class="reactions-bar">
+            <button class="reaction-btn" data-emoji="🫘">🫘</button>
+            <button class="reaction-btn" data-emoji="🎺">🎺</button>
+            <button class="reaction-btn" data-emoji="🇲🇽">🇲🇽</button>
+            <button class="reaction-btn" data-emoji="🎉">🎉</button>
+            <button class="reaction-btn" data-emoji="😱">😱</button>
+            <button class="reaction-btn" data-emoji="🔥">🔥</button>
+            <button class="reaction-btn" data-emoji="👏">👏</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- WINNER CELEBRATION MODAL -->
+  <div id="winner-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div style="font-size: 3.5rem; margin-bottom: 8px;">🏆🎺🎊</div>
+      <h2 data-i18n="winnerTitle">¡¡LOTERÍA!!</h2>
+      <p id="winner-message">A player has completed their board!</p>
+      
+      <!-- Winner mini tabla preview -->
+      <div style="display: flex; justify-content: center; margin: 16px 0;">
+        <div id="winner-tabla-preview" class="loteria-tabla" style="max-width: 280px; gap: 4px; padding: 8px;"></div>
+      </div>
+
+      <div id="winner-host-actions" style="margin-top: 20px; display: none;">
+        <button id="btn-restart-round" class="btn-primary" style="font-size: 1.15rem;" data-i18n="btnPlayAgain">Play Another Round!</button>
+      </div>
+      <div id="winner-guest-msg" style="color: #94a3b8; font-style: italic; margin-top: 14px;" data-i18n="waitingNextRound">
+        Waiting for host to start another round...
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Confetti Canvas Support (Loaded from CDN with local fallback in app.js) -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <!-- Audio Synthesizer -->
+  <script src="audio.js"></script>
+  <!-- Main Game Client Script -->
+  <script src="app.js"></script>
+
+</body>
+</html>
