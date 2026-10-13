@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#3d1f14"/>
+      <stop offset="60%" stop-color="#241109"/>
+      <stop offset="100%" stop-color="#120603"/>
+    </radialGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fffdf5"/>
+      <stop offset="100%" stop-color="#fef3c7"/>
+    </linearGradient>
+    <linearGradient id="goldBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047"/>
+      <stop offset="50%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="#000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- Background Base with rounded corners -->
+  <rect width="512" height="512" rx="110" fill="url(#bg)"/>
+
+  <!-- Papel picado mini banners on top -->
+  <path d="M 60,60 L 110,60 L 85,95 Z" fill="#e11d48" opacity="0.9"/>
+  <path d="M 120,60 L 170,60 L 145,95 Z" fill="#0284c7" opacity="0.9"/>
+  <path d="M 180,60 L 230,60 L 205,95 Z" fill="#15803d" opacity="0.9"/>
+  <path d="M 240,60 L 290,60 L 265,95 Z" fill="#f59e0b" opacity="0.9"/>
+  <path d="M 300,60 L 350,60 L 325,95 Z" fill="#9333ea" opacity="0.9"/>
+  <path d="M 360,60 L 410,60 L 385,95 Z" fill="#ec4899" opacity="0.9"/>
+  <path d="M 420,60 L 460,60 L 440,95 Z" fill="#06b6d4" opacity="0.9"/>
+
+  <!-- Centered Loteria Card -->
+  <g filter="url(#shadow)">
+    <!-- Gold Rim -->
+    <rect x="120" y="90" width="272" height="360" rx="20" fill="url(#goldBorder)"/>
+    <!-- Card Face -->
+    <rect x="128" y="98" width="256" height="344" rx="16" fill="url(#cardGrad)"/>
+    <!-- Inner Border Line -->
+    <rect x="136" y="106" width="240" height="328" rx="12" fill="none" stroke="#26150c" stroke-width="3"/>
+  </g>
+
+  <!-- Card Number -->
+  <text x="150" y="140" font-family="'Outfit', sans-serif" font-weight="900" font-size="28" fill="#1e100a">1</text>
+
+  <!-- Card Icon / Character (El Gallo / La Calavera) -->
+  <text x="256" y="275" font-size="110" text-anchor="middle" dominant-baseline="central">🐓</text>
+
+  <!-- Pinto Bean (Frijolito) Placed on Card -->
+  <g transform="translate(300, 290) rotate(-18)">
+    <ellipse cx="20" cy="14" rx="26" ry="17" fill="#54220c"/>
+    <ellipse cx="18" cy="12" rx="23" ry="14" fill="#8d4925"/>
+    <ellipse cx="12" cy="7" rx="6" ry="2.5" fill="#ffffff" opacity="0.45"/>
+  </g>
+
+  <!-- Card Title -->
+  <line x1="148" y1="380" x2="364" y2="380" stroke="#26150c" stroke-width="2.5"/>
+  <text x="256" y="410" font-family="'Playfair Display', serif" font-weight="900" font-size="24" fill="#1e100a" text-anchor="middle" letter-spacing="1">EL GALLO</text>
+</svg>

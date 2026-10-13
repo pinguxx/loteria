@@ -176,7 +176,15 @@ const TRANSLATIONS = {
     themeChanged: (name) => `Theme changed to: ${name}`,
     themeFiesta: 'Fiesta Clásica',
     themeMuertos: 'Día de los Muertos',
-    themeVintage: 'Vintage Feria 1950s'
+    themeVintage: 'Vintage Feria 1950s',
+    podiumWinner: 'Grand Winner',
+    podiumSalado: '"El Salado"',
+    podiumSaladoSub: '1 bean away!',
+    podiumDormilon: '"El Dormilón"',
+    podiumDormilonSub: 'Missed drawn cards',
+    tokenChanged: (name) => `Marker token: ${name}`,
+    dualTablaOn: '🎴 2 Boards (ACTIVE)',
+    dualTablaOff: '🎴+ 2 Boards'
   },
   es: {
     appTitle: 'LOTERÍA',
@@ -269,7 +277,15 @@ const TRANSLATIONS = {
     themeChanged: (name) => `Tema cambiado a: ${name}`,
     themeFiesta: 'Fiesta Clásica',
     themeMuertos: 'Día de los Muertos',
-    themeVintage: 'Feria Vintage 1950'
+    themeVintage: 'Feria Vintage 1950',
+    podiumWinner: 'Gran Ganador',
+    podiumSalado: '"El Salado"',
+    podiumSaladoSub: '¡A 1 frijolito!',
+    podiumDormilon: '"El Dormilón"',
+    podiumDormilonSub: 'Cartas pasadas',
+    tokenChanged: (name) => `Ficha: ${name}`,
+    dualTablaOn: '🎴 2 Tablas (ACTIVO)',
+    dualTablaOff: '🎴+ 2 Tablas'
   }
 };
 
@@ -293,6 +309,33 @@ let currentSettings = {
   verseAudio: true
 };
 let myPlacedBeans = new Set();
+let myPlacedBeans2 = new Set();
+let hasSecondTabla = false;
+let mySecondTabla = null;
+let currentToken = localStorage.getItem('loteria_token') || 'theme';
+const TOKEN_EMOJIS = {
+  theme: '🎨',
+  frijol: '🫘',
+  corcholata: '🪙',
+  moneda: '💰',
+  maiz: '🌽',
+  calavera: '💀',
+  boton: '🔘'
+};
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/[&<>"']/g, function(m) {
+    return {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    }[m];
+  });
+}
+
 let isAudioMuted = false;
 let isSpeechMuted = false;
 let latestRoomData = null;
@@ -583,6 +626,10 @@ function leaveCurrentRoom(skipConfirm = false) {
   currentRoomCode = '';
   myPlayer = { id: null, name: '', tabla: [], isHost: false };
   myPlacedBeans.clear();
+  myPlacedBeans2.clear();
+  hasSecondTabla = false;
+  mySecondTabla = null;
+  updateDualTablaUI();
   latestRoomData = null;
 
   clearLocalSession();
@@ -634,7 +681,8 @@ function showToast(message, isWarning = false) {
 }
 
 // Render a 4x4 Tabla Grid into a container element
-function renderTabla(containerElement, cardIds, isInteractive = false, markedIndices = new Set()) {
+function renderTabla(containerElement, cardIds, isInteractive = false, markedIndices = new Set(), isBoard2 = false) {
+  if (!containerElement || !cardIds) return;
   containerElement.innerHTML = '';
 
   cardIds.forEach((cardId, index) => {
@@ -655,12 +703,16 @@ function renderTabla(containerElement, cardIds, isInteractive = false, markedInd
       <div class="tile-art">${card.emoji}</div>
       <div class="tile-name" title="${card.name}">${card.name}</div>
       <div class="tile-english" title="${card.english}">${card.english}</div>
-      ${markedIndices.has(index) ? `<div class="bean-token" style="--bean-rot: ${beanRotation}deg;"></div>` : ''}
+      ${markedIndices.has(index) ? `<div class="bean-token" data-token="${currentToken}" style="--bean-rot: ${beanRotation}deg;"></div>` : ''}
     `;
 
     if (isInteractive) {
       tile.addEventListener('click', () => {
-        handleTileClick(index);
+        if (isBoard2) {
+          handleTileClick2(index);
+        } else {
+          handleTileClick(index);
+        }
       });
     }
 
@@ -668,7 +720,7 @@ function renderTabla(containerElement, cardIds, isInteractive = false, markedInd
   });
 }
 
-// Handle placing / removing a bean token on the game board
+// Handle placing / removing a bean token on Board 1
 function handleTileClick(index) {
   if (myPlacedBeans.has(index)) {
     myPlacedBeans.delete(index);
@@ -680,24 +732,26 @@ function handleTileClick(index) {
 
   // Update DOM tile directly
   const gameTabla = document.getElementById('game-tabla');
-  const tile = gameTabla.children[index];
-  if (tile) {
-    const existingBean = tile.querySelector('.bean-token');
-    if (myPlacedBeans.has(index)) {
-      if (!existingBean) {
-        const bean = document.createElement('div');
-        bean.className = 'bean-token';
-        const rot = ((index * 37) % 60) - 30;
-        bean.style.setProperty('--bean-rot', `${rot}deg`);
-        tile.appendChild(bean);
+  if (gameTabla) {
+    const tile = gameTabla.children[index];
+    if (tile) {
+      const existingBean = tile.querySelector('.bean-token');
+      if (myPlacedBeans.has(index)) {
+        if (!existingBean) {
+          const bean = document.createElement('div');
+          bean.className = 'bean-token';
+          bean.dataset.token = currentToken;
+          const rot = ((index * 37) % 60) - 30;
+          bean.style.setProperty('--bean-rot', `${rot}deg`);
+          tile.appendChild(bean);
+        }
+      } else {
+        if (existingBean) existingBean.remove();
       }
-    } else {
-      if (existingBean) existingBean.remove();
     }
   }
 
-  // Update bean counter badge
-  document.getElementById('bean-count-badge').textContent = `${myPlacedBeans.size} / 16`;
+  updateBeanCounters();
 
   // Tell server so other players see our beans count on the live scoreboard
   if (socket && currentRoomCode) {
@@ -706,6 +760,110 @@ function handleTileClick(index) {
       cardIndex: index
     });
   }
+}
+
+// Handle placing / removing a bean token on Board 2
+function handleTileClick2(index) {
+  if (myPlacedBeans2.has(index)) {
+    myPlacedBeans2.delete(index);
+    window.loteriaAudio.playBeanRemove();
+  } else {
+    myPlacedBeans2.add(index);
+    window.loteriaAudio.playBeanPop();
+  }
+
+  const gameTabla2 = document.getElementById('game-tabla-2');
+  if (gameTabla2) {
+    const tile = gameTabla2.children[index];
+    if (tile) {
+      const existingBean = tile.querySelector('.bean-token');
+      if (myPlacedBeans2.has(index)) {
+        if (!existingBean) {
+          const bean = document.createElement('div');
+          bean.className = 'bean-token';
+          bean.dataset.token = currentToken;
+          const rot = ((index * 37) % 60) - 30;
+          bean.style.setProperty('--bean-rot', `${rot}deg`);
+          tile.appendChild(bean);
+        }
+      } else {
+        if (existingBean) existingBean.remove();
+      }
+    }
+  }
+
+  updateBeanCounters();
+
+  if (socket && currentRoomCode) {
+    socket.emit('toggle_bean_2', {
+      roomCode: currentRoomCode,
+      cardIndex: index
+    });
+  }
+}
+
+function updateBeanCounters() {
+  const badge = document.getElementById('bean-count-badge');
+  if (badge) {
+    if (hasSecondTabla) {
+      badge.textContent = `T1: ${myPlacedBeans.size} | T2: ${myPlacedBeans2.size}`;
+    } else {
+      badge.textContent = `${myPlacedBeans.size} / 16`;
+    }
+  }
+  const t1Count = document.getElementById('t1-count');
+  if (t1Count) t1Count.textContent = myPlacedBeans.size;
+  const t2Count = document.getElementById('t2-count');
+  if (t2Count) t2Count.textContent = myPlacedBeans2.size;
+}
+
+function updateDualTablaUI() {
+  const btn = document.getElementById('btn-toggle-dual-tabla');
+  const tabs = document.getElementById('dual-tabla-tabs');
+  const board1 = document.getElementById('game-tabla');
+  const board2 = document.getElementById('game-tabla-2');
+  const tr = t();
+
+  if (btn) {
+    if (hasSecondTabla) {
+      btn.classList.add('active');
+      btn.textContent = tr.dualTablaOn || '🎴 2 Tablas (ACTIVO)';
+    } else {
+      btn.classList.remove('active');
+      btn.textContent = tr.dualTablaOff || '🎴+ 2 Tablas';
+    }
+  }
+
+  if (tabs) {
+    tabs.style.display = hasSecondTabla ? 'flex' : 'none';
+  }
+
+  if (!hasSecondTabla) {
+    if (board1) board1.style.display = 'grid';
+    if (board2) board2.style.display = 'none';
+    const tab1 = document.getElementById('tab-tabla-1');
+    const tab2 = document.getElementById('tab-tabla-2');
+    if (tab1) tab1.classList.add('active');
+    if (tab2) tab2.classList.remove('active');
+  }
+
+  updateBeanCounters();
+}
+
+// Floating Shout Speech Bubble Animation
+function spawnFloatingShout(senderName, shoutText) {
+  const bubble = document.createElement('div');
+  bubble.className = 'floating-shout-bubble';
+  bubble.innerHTML = `<strong>${escapeHtml(senderName)}:</strong> ${escapeHtml(shoutText)}`;
+
+  const leftPos = Math.floor(Math.random() * 40) + 30; // 30% to 70%
+  bubble.style.left = `${leftPos}%`;
+
+  document.body.appendChild(bubble);
+  if (window.loteriaAudio) {
+    window.loteriaAudio.playCardChime();
+  }
+  setTimeout(() => bubble.remove(), 3200);
 }
 
 // Floating Emoji Animation
@@ -846,6 +1004,10 @@ function setupSocketListeners() {
     currentSettings = data.settings;
     latestRoomData = data;
     myPlacedBeans = new Set(data.player.beans || []);
+    myPlacedBeans2 = new Set(data.player.beans_2 || []);
+    hasSecondTabla = !!data.player.tabla_2;
+    mySecondTabla = data.player.tabla_2 || null;
+    updateDualTablaUI();
 
     saveLocalSession(data.roomCode, data.player, data.isHost);
     const resumeBanner = document.getElementById('resume-banner');
@@ -867,7 +1029,7 @@ function setupSocketListeners() {
 
     if (data.roomState === 'playing') {
       isGameActive = true;
-      document.getElementById('bean-count-badge').textContent = `${myPlacedBeans.size} / 16`;
+      updateBeanCounters();
 
       if (data.isPaused !== undefined) {
         const pauseBtn = document.getElementById('btn-toggle-pause');
@@ -926,7 +1088,10 @@ function setupSocketListeners() {
       }
 
       // Render interactive board with beans
-      renderTabla(document.getElementById('game-tabla'), myPlayer.tabla, true, myPlacedBeans);
+      renderTabla(document.getElementById('game-tabla'), myPlayer.tabla, true, myPlacedBeans, false);
+      if (hasSecondTabla && mySecondTabla) {
+        renderTabla(document.getElementById('game-tabla-2'), mySecondTabla, true, myPlacedBeans2, true);
+      }
 
       // Host controls
       const hostControls = document.getElementById('host-game-controls');
@@ -935,7 +1100,10 @@ function setupSocketListeners() {
       showScreen('game');
     } else if (data.roomState === 'ended' && data.winner) {
       isGameActive = false;
-      renderTabla(document.getElementById('game-tabla'), myPlayer.tabla, false, myPlacedBeans);
+      renderTabla(document.getElementById('game-tabla'), myPlayer.tabla, false, myPlacedBeans, false);
+      if (hasSecondTabla && mySecondTabla) {
+        renderTabla(document.getElementById('game-tabla-2'), mySecondTabla, false, myPlacedBeans2, true);
+      }
 
       const hostControls = document.getElementById('host-game-controls');
       if (hostControls) hostControls.style.display = 'none';
@@ -984,6 +1152,20 @@ function setupSocketListeners() {
     myPlayer.tabla = tabla;
     renderTabla(document.getElementById('preview-tabla'), tabla);
     showToast(t().toastNewTabla);
+  });
+
+  // Second Tabla Updated
+  socket.on('second_tabla_updated', ({ tabla2 }) => {
+    if (tabla2) {
+      hasSecondTabla = true;
+      mySecondTabla = tabla2;
+      const game2 = document.getElementById('game-tabla-2');
+      if (game2) renderTabla(game2, mySecondTabla, isGameActive, myPlacedBeans2, true);
+    } else {
+      hasSecondTabla = false;
+      mySecondTabla = null;
+    }
+    updateDualTablaUI();
   });
 
   // 5. Room State Sync
@@ -1043,7 +1225,8 @@ function setupSocketListeners() {
   socket.on('game_started', () => {
     isGameActive = true;
     myPlacedBeans.clear();
-    document.getElementById('bean-count-badge').textContent = '0 / 16';
+    myPlacedBeans2.clear();
+    updateBeanCounters();
     const pauseBtn = document.getElementById('btn-toggle-pause');
     if (pauseBtn) pauseBtn.textContent = '⏸️';
     // Reset Mobile Caller Strip
@@ -1065,7 +1248,10 @@ function setupSocketListeners() {
     if (mVerseEn) mVerseEn.textContent = '';
 
     // Render interactive tabla for the player
-    renderTabla(document.getElementById('game-tabla'), myPlayer.tabla, true, myPlacedBeans);
+    renderTabla(document.getElementById('game-tabla'), myPlayer.tabla, true, myPlacedBeans, false);
+    if (hasSecondTabla && mySecondTabla) {
+      renderTabla(document.getElementById('game-tabla-2'), mySecondTabla, true, myPlacedBeans2, true);
+    }
 
     showScreen('game');
     showToast(t().toastGameStarted);
@@ -1160,7 +1346,7 @@ function setupSocketListeners() {
   });
 
   // 9. Legitimate Winner Announcement
-  socket.on('loteria_winner', ({ winner, message, potPrize }) => {
+  socket.on('loteria_winner', ({ winner, message, potPrize, salado, dormilon }) => {
     isGameActive = false;
     window.loteriaAudio.stopSpeech();
     window.loteriaAudio.playFanfare();
@@ -1185,6 +1371,32 @@ function setupSocketListeners() {
     const winContainer = document.getElementById('winner-tabla-preview');
     renderTabla(winContainer, winner.tabla);
 
+    // Populate Round Podium (Winner, El Salado, El Dormilón)
+    const podiumWinner = document.getElementById('podium-winner-name');
+    if (podiumWinner) podiumWinner.textContent = winner.name;
+
+    const saladoCard = document.getElementById('podium-salado-card');
+    const saladoName = document.getElementById('podium-salado-name');
+    if (salado && salado.name) {
+      if (saladoName) saladoName.textContent = `${salado.name} (${salado.beans}/16)`;
+      if (saladoCard) saladoCard.style.display = 'flex';
+    } else {
+      if (saladoName) saladoName.textContent = '---';
+      if (saladoCard) saladoCard.style.display = 'none';
+    }
+
+    const dormilonCard = document.getElementById('podium-dormilon-card');
+    const dormilonName = document.getElementById('podium-dormilon-name');
+    const dormilonSub = document.getElementById('podium-dormilon-sub');
+    if (dormilon && dormilon.name && dormilon.missed > 0) {
+      if (dormilonName) dormilonName.textContent = dormilon.name;
+      if (dormilonSub) dormilonSub.textContent = `¡Olvidó ${dormilon.missed} carta${dormilon.missed > 1 ? 's' : ''}!`;
+      if (dormilonCard) dormilonCard.style.display = 'flex';
+    } else {
+      if (dormilonName) dormilonName.textContent = '---';
+      if (dormilonCard) dormilonCard.style.display = 'none';
+    }
+
     // Show host actions if host, or guest exit if guest
     const isHost = myPlayer && myPlayer.isHost;
     const hostActions = document.getElementById('winner-host-actions');
@@ -1198,9 +1410,13 @@ function setupSocketListeners() {
   });
 
 
-  // 10. Floating Reactions
+  // 10. Floating Reactions & Cotorreo Fair Shouts
   socket.on('new_reaction', ({ emoji, sender }) => {
-    spawnFloatingEmoji(emoji);
+    if (emoji && (emoji.length > 5 || emoji.includes(' ') || emoji.includes('!'))) {
+      spawnFloatingShout(sender || 'Jugador', emoji);
+    } else {
+      spawnFloatingEmoji(emoji);
+    }
   });
 
   // 11. Deck Exhausted without winner
@@ -1365,6 +1581,118 @@ function setupUIEventListeners() {
     });
   });
 
+  // Cotorreo Fair Shouts ("El Cotorreo")
+  document.querySelectorAll('.cotorreo-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const shout = btn.dataset.shout;
+      if (socket && currentRoomCode && shout) {
+        socket.emit('send_reaction', {
+          roomCode: currentRoomCode,
+          emoji: shout,
+          playerName: myPlayer ? myPlayer.name : ''
+        });
+      }
+    });
+  });
+
+  // Token Selector Modal ("El Costalito de Fichas")
+  const openTokenModal = () => {
+    const modal = document.getElementById('token-modal');
+    if (modal) {
+      modal.classList.add('active');
+      document.querySelectorAll('.token-choice-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.token === currentToken);
+      });
+    }
+  };
+
+  const closeTokenModal = () => {
+    const modal = document.getElementById('token-modal');
+    if (modal) modal.classList.remove('active');
+  };
+
+  const tokenHeaderBtn = document.getElementById('btn-toggle-token');
+  if (tokenHeaderBtn) tokenHeaderBtn.addEventListener('click', openTokenModal);
+
+  const tokenBoardBtn = document.getElementById('btn-board-token-select');
+  if (tokenBoardBtn) tokenBoardBtn.addEventListener('click', openTokenModal);
+
+  const closeTokenBtn = document.getElementById('btn-close-token-modal');
+  if (closeTokenBtn) closeTokenBtn.addEventListener('click', closeTokenModal);
+
+  document.querySelectorAll('.token-choice-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tok = btn.dataset.token;
+      if (tok) {
+        currentToken = tok;
+        localStorage.setItem('loteria_token', currentToken);
+        document.querySelectorAll('.token-choice-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.token === currentToken);
+        });
+        const badge = document.getElementById('current-token-badge');
+        if (badge) badge.textContent = TOKEN_EMOJIS[currentToken] || '🫘';
+        // Update all existing beans on boards
+        document.querySelectorAll('.bean-token').forEach(b => {
+          b.dataset.token = currentToken;
+        });
+        if (window.loteriaAudio) window.loteriaAudio.playBeanPop();
+        closeTokenModal();
+      }
+    });
+  });
+
+  // Dual Board Toggle & Tab Switching ("Modo Pro: Doble Tabla")
+  const dualTablaBtn = document.getElementById('btn-toggle-dual-tabla');
+  if (dualTablaBtn) {
+    dualTablaBtn.addEventListener('click', () => {
+      hasSecondTabla = !hasSecondTabla;
+      if (socket && currentRoomCode) {
+        socket.emit('set_second_tabla', {
+          roomCode: currentRoomCode,
+          enabled: hasSecondTabla
+        });
+      }
+      updateDualTablaUI();
+    });
+  }
+
+  const tab1 = document.getElementById('tab-tabla-1');
+  const tab2 = document.getElementById('tab-tabla-2');
+  const board1 = document.getElementById('game-tabla');
+  const board2 = document.getElementById('game-tabla-2');
+
+  if (tab1 && tab2 && board1 && board2) {
+    tab1.addEventListener('click', () => {
+      tab1.classList.add('active');
+      tab2.classList.remove('active');
+      board1.style.display = 'grid';
+      board2.style.display = 'none';
+    });
+    tab2.addEventListener('click', () => {
+      tab2.classList.add('active');
+      tab1.classList.remove('active');
+      board1.style.display = 'none';
+      board2.style.display = 'grid';
+    });
+  }
+
+  // PWA Install Button Handler
+  const pwaBtn = document.getElementById('btn-pwa-install');
+  if (pwaBtn) {
+    pwaBtn.addEventListener('click', async () => {
+      if (deferredPwaPrompt) {
+        deferredPwaPrompt.prompt();
+        const choice = await deferredPwaPrompt.userChoice;
+        if (choice.outcome === 'accepted') {
+          pwaBtn.style.display = 'none';
+        }
+        deferredPwaPrompt = null;
+      } else {
+        showToast('Para instalar: Usa la opción "Agregar a inicio" de tu navegador 📱');
+      }
+    });
+  }
+
   // Sound Effects Toggle
   const sndBtn = document.getElementById('btn-toggle-sound');
   sndBtn.addEventListener('click', () => {
@@ -1425,6 +1753,32 @@ function setupUIEventListeners() {
   }
 }
 
+// PWA Service Worker & Install Prompt
+let deferredPwaPrompt = null;
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+      console.log('✅ ServiceWorker registered:', reg.scope);
+    }).catch(err => {
+      console.warn('SW registration failed:', err);
+    });
+  });
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPwaPrompt = e;
+  const pwaBtn = document.getElementById('btn-pwa-install');
+  if (pwaBtn) pwaBtn.style.display = 'inline-flex';
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredPwaPrompt = null;
+  const pwaBtn = document.getElementById('btn-pwa-install');
+  if (pwaBtn) pwaBtn.style.display = 'none';
+  showToast('¡Lotería Mexicana instalada en tu dispositivo! 🎉');
+});
+
 // Initialize Application
 async function init() {
   // 1. Fetch Cards Dataset
@@ -1439,6 +1793,10 @@ async function init() {
   // Apply chosen/default language & theme
   applyLanguage(currentLang);
   applyTheme(currentTheme);
+
+  // Set initial token badge
+  const tokenBadge = document.getElementById('current-token-badge');
+  if (tokenBadge) tokenBadge.textContent = TOKEN_EMOJIS[currentToken] || '🫘';
 
   // Check if a previous game session is available to resume
   checkResumeBanner();
@@ -1459,7 +1817,6 @@ async function init() {
     if (joinNameInput) joinNameInput.focus();
   }
 }
-
 
 // Start app
 window.addEventListener('DOMContentLoaded', init);

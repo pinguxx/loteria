@@ -80,6 +80,24 @@ pub enum ClientMessage {
         #[serde(rename = "cardIndex")]
         card_index: u8,
     },
+    #[serde(rename = "set_second_tabla")]
+    SetSecondTabla {
+        #[serde(rename = "roomCode")]
+        room_code: String,
+        enabled: bool,
+    },
+    #[serde(rename = "shuffle_second_tabla")]
+    ShuffleSecondTabla {
+        #[serde(rename = "roomCode")]
+        room_code: String,
+    },
+    #[serde(rename = "toggle_bean_2")]
+    ToggleBean2 {
+        #[serde(rename = "roomCode")]
+        room_code: String,
+        #[serde(rename = "cardIndex")]
+        card_index: u8,
+    },
     #[serde(rename = "claim_loteria")]
     ClaimLoteria {
         #[serde(rename = "roomCode")]
@@ -305,6 +323,7 @@ pub async fn start_game_session(state: &AppState, room_code: &str) {
 
     for player in room.players.values_mut() {
         player.beans.clear();
+        player.beans_2.clear();
     }
 
     if room.settings.enable_chips && room.settings.buy_in > 0 {
@@ -470,7 +489,9 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                                         player_name.trim().to_string()
                                     },
                                     tabla: generate_random_tabla(),
+                                    tabla_2: None,
                                     beans: Vec::new(),
+                                    beans_2: Vec::new(),
                                     wins: 0,
                                     ready: true,
                                     connected: true,
@@ -634,6 +655,64 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                             }
                         }
 
+                        ClientMessage::SetSecondTabla { room_code, enabled } => {
+                            let pid = current_player_id.as_deref().unwrap_or(&conn_id_clone);
+                            let mut rooms = state_clone.rooms.write().await;
+                            if let Some(room) = rooms.get_mut(&room_code) {
+                                if let Some(player) = room.players.get_mut(pid) {
+                                    if enabled {
+                                        if player.tabla_2.is_none() {
+                                            player.tabla_2 = Some(generate_random_tabla());
+                                        }
+                                    } else {
+                                        player.tabla_2 = None;
+                                        player.beans_2.clear();
+                                    }
+                                    let t2 = player.tabla_2;
+                                    drop(rooms);
+                                    send_event(&tx_clone, "second_tabla_updated", json!({ "tabla2": t2 }));
+                                    broadcast_room_state(&state_clone, &room_code).await;
+                                }
+                            }
+                        }
+
+                        ClientMessage::ShuffleSecondTabla { room_code } => {
+                            let pid = current_player_id.as_deref().unwrap_or(&conn_id_clone);
+                            let mut rooms = state_clone.rooms.write().await;
+                            if let Some(room) = rooms.get_mut(&room_code) {
+                                if room.state != RoomState::Playing {
+                                    if let Some(player) = room.players.get_mut(pid) {
+                                        player.tabla_2 = Some(generate_random_tabla());
+                                        player.beans_2.clear();
+                                        let t2 = player.tabla_2;
+                                        drop(rooms);
+                                        send_event(&tx_clone, "second_tabla_updated", json!({ "tabla2": t2 }));
+                                    }
+                                }
+                            }
+                        }
+
+                        ClientMessage::ToggleBean2 {
+                            room_code,
+                            card_index,
+                        } => {
+                            let pid = current_player_id.as_deref().unwrap_or(&conn_id_clone);
+                            let mut rooms = state_clone.rooms.write().await;
+                            if let Some(room) = rooms.get_mut(&room_code) {
+                                if let Some(player) = room.players.get_mut(pid) {
+                                    if let Some(pos) =
+                                        player.beans_2.iter().position(|&i| i == card_index)
+                                    {
+                                        player.beans_2.remove(pos);
+                                    } else {
+                                        player.beans_2.push(card_index);
+                                    }
+                                    drop(rooms);
+                                    broadcast_room_state(&state_clone, &room_code).await;
+                                }
+                            }
+                        }
+
                         ClientMessage::ClaimLoteria { room_code } => {
                             let pid = current_player_id.as_deref().unwrap_or(&conn_id_clone);
                             let mut rooms = state_clone.rooms.write().await;
@@ -643,11 +722,23 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                                 }
 
                                 if let Some(player) = room.players.get_mut(pid) {
-                                    let is_valid = check_win_pattern(
+                                    let is_valid_1 = check_win_pattern(
                                         &player.tabla,
                                         &room.drawn_cards,
                                         &room.settings.win_pattern,
                                     );
+                                    let is_valid_2 = player
+                                        .tabla_2
+                                        .as_ref()
+                                        .map(|t2| {
+                                            check_win_pattern(
+                                                t2,
+                                                &room.drawn_cards,
+                                                &room.settings.win_pattern,
+                                            )
+                                        })
+                                        .unwrap_or(false);
+                                    let is_valid = is_valid_1 || is_valid_2;
 
                                     if is_valid {
                                         room.state = RoomState::Ended;
@@ -661,12 +752,53 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                                         let winner_info = WinnerInfo {
                                              id: player.id.clone(),
                                             name: player.name.clone(),
-                                            tabla: player.tabla,
+                                            tabla: if is_valid_1 {
+                                                player.tabla
+                                            } else {
+                                                player.tabla_2.unwrap_or(player.tabla)
+                                            },
                                             win_pattern: room.settings.win_pattern.clone(),
                                         };
                                         room.winner = Some(winner_info.clone());
 
                                         let winner_name = player.name.clone();
+
+                                        // Compute "El Salado" (closest to winning) and "El Dormilón" (most missed called cards)
+                                        let mut max_beans = 0;
+                                        let mut salado_player: Option<(String, usize)> = None;
+
+                                        let mut max_missed = 0;
+                                        let mut dormilon_player: Option<(String, usize)> = None;
+
+                                        for (p_id, p) in room.players.iter() {
+                                            if p_id == pid {
+                                                continue;
+                                            }
+                                            let p_beans = p.beans.len().max(p.beans_2.len());
+                                            if p_beans > max_beans {
+                                                max_beans = p_beans;
+                                                salado_player = Some((p.name.clone(), p_beans));
+                                            }
+
+                                            let mut missed = 0;
+                                            for (idx, &c_id) in p.tabla.iter().enumerate() {
+                                                if room.drawn_cards.contains(&c_id) && !p.beans.contains(&(idx as u8)) {
+                                                    missed += 1;
+                                                }
+                                            }
+                                            if let Some(t2) = &p.tabla_2 {
+                                                for (idx, &c_id) in t2.iter().enumerate() {
+                                                    if room.drawn_cards.contains(&c_id) && !p.beans_2.contains(&(idx as u8)) {
+                                                        missed += 1;
+                                                    }
+                                                }
+                                            }
+                                            if missed > max_missed {
+                                                max_missed = missed;
+                                                dormilon_player = Some((p.name.clone(), missed));
+                                            }
+                                        }
+
                                         drop(rooms);
 
                                         broadcast_event(
@@ -676,7 +808,9 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                                             json!({
                                                 "winner": winner_info,
                                                 "message": format!("¡{} has won shouting LOTERÍA!", winner_name),
-                                                "potPrize": pot_prize
+                                                "potPrize": pot_prize,
+                                                "salado": salado_player.map(|(n, b)| json!({ "name": n, "beans": b })),
+                                                "dormilon": dormilon_player.map(|(n, m)| json!({ "name": n, "missed": m }))
                                             }),
                                         )
                                         .await;

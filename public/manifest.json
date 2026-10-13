@@ -1,0 +1,20 @@
+{
+  "name": "¡Lotería Mexicana Online!",
+  "short_name": "Lotería",
+  "description": "Juego multijugador en tiempo real de la tradicional Lotería Mexicana con cantor de voz, apuestas de pozo y temas folclóricos.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#170d0a",
+  "theme_color": "#f59e0b",
+  "lang": "es",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512 192x192 128x128 64x64",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

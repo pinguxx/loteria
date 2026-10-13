@@ -56,7 +56,11 @@ pub struct Player {
     pub id: String,
     pub name: String,
     pub tabla: [u8; 16],
+    #[serde(default)]
+    pub tabla_2: Option<[u8; 16]>,
     pub beans: Vec<u8>,
+    #[serde(default)]
+    pub beans_2: Vec<u8>,
     pub wins: u32,
     pub ready: bool,
     #[serde(default = "default_connected")]
@@ -98,6 +102,8 @@ pub struct SanitizedPlayer {
     pub is_host: bool,
     #[serde(rename = "beansCount")]
     pub beans_count: usize,
+    #[serde(rename = "hasSecondTabla")]
+    pub has_second_tabla: bool,
     pub wins: u32,
     pub ready: bool,
     pub connected: bool,
@@ -128,7 +134,9 @@ impl Room {
             id: host_id.clone(),
             name: host_name,
             tabla: generate_random_tabla(),
+            tabla_2: None,
             beans: Vec::new(),
+            beans_2: Vec::new(),
             wins: 0,
             ready: true,
             connected: true,
@@ -160,7 +168,8 @@ impl Room {
                 id: p.id.clone(),
                 name: p.name.clone(),
                 is_host: p.id == self.host_id,
-                beans_count: p.beans.len(),
+                beans_count: p.beans.len() + p.beans_2.len(),
+                has_second_tabla: p.tabla_2.is_some(),
                 wins: p.wins,
                 ready: p.ready,
                 connected: p.connected,

@@ -8,6 +8,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Playfair+Display:ital,wght@0,700;0,900;1,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <!-- Progressive Web App (PWA) Meta & Icons -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#f59e0b">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Lotería">
 </head>
 <body>
 
@@ -38,6 +46,10 @@
     <div class="header-actions">
       <!-- Leave Room Button (Visible during lobby and game) -->
       <button id="btn-header-leave" class="btn-icon header-leave-btn" style="display: none;" title="Leave Room / Salir">🚪 <span data-i18n="leaveRoom">Leave</span></button>
+      <!-- PWA Install Button (Visible when browser allows installing as app) -->
+      <button id="btn-pwa-install" class="btn-icon" style="display: none;" title="Instalar App / Install App">📲</button>
+      <!-- Token Marker Selector ("El Costalito de Fichas") -->
+      <button id="btn-toggle-token" class="btn-icon" title="Ficha / Marker Token (Frijol, Corcholata, Moneda...)">🫘</button>
       <!-- Theme Switcher (Fiesta Clásica, Día de los Muertos, Vintage 1950s) -->
       <button id="btn-toggle-theme" class="btn-icon" title="Theme / Tema (Fiesta / Muertos / Vintage)">🎨</button>
       <!-- Language Switcher Toggle (Defaults to English) -->
@@ -299,16 +311,30 @@
               <span style="font-size: 0.8rem; color: #94a3b8;" data-i18n="roomTag">ROOM:</span>
               <strong id="game-room-code-tag" style="color: #fde047; letter-spacing: 2px; margin-left: 4px;">ABC12</strong>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="font-size: 0.85rem; color: #cbd5e1;" data-i18n="beansPlaced">Beans placed:</span>
-              <span id="bean-count-badge" style="background: #54220c; border: 1px solid #8d4925; color: #fef08a; padding: 2px 10px; border-radius: 12px; font-weight: 800;">0 / 16</span>
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
+              <button id="btn-board-token-select" class="btn-token-badge" title="Cambiar Ficha / Change Token">
+                Ficha: <span id="current-token-badge">🫘</span>
+              </button>
+              <button id="btn-toggle-dual-tabla" class="btn-token-badge" title="Activar Doble Tabla (Modo Pro) / Toggle 2 Boards">
+                🎴+ 2 Tablas
+              </button>
+              <span id="bean-count-badge" style="background: #54220c; border: 1px solid #8d4925; color: #fef08a; padding: 2px 8px; border-radius: 12px; font-weight: 800; font-size: 0.82rem;">0 / 16</span>
             </div>
           </div>
 
-          <!-- The 4x4 Grid -->
-          <div class="tabla-container">
-            <div id="game-tabla" class="loteria-tabla">
+          <!-- Dual Tabla Selector Tabs (Modo Pro) -->
+          <div id="dual-tabla-tabs" class="dual-tabla-tabs" style="display: none;">
+            <button id="tab-tabla-1" class="dual-tab-btn active">🎴 Tabla 1 (<span id="t1-count">0</span>/16)</button>
+            <button id="tab-tabla-2" class="dual-tab-btn">🎴 Tabla 2 (<span id="t2-count">0</span>/16)</button>
+          </div>
+
+          <!-- The 4x4 Grid Container (Supports Dual Boards) -->
+          <div class="tabla-container" id="tabla-container-wrapper">
+            <div id="game-tabla" class="loteria-tabla active">
               <!-- Rendered dynamically -->
+            </div>
+            <div id="game-tabla-2" class="loteria-tabla" style="display: none;">
+              <!-- Rendered dynamically for 2nd board -->
             </div>
           </div>
 
@@ -328,6 +354,19 @@
             <button class="reaction-btn" data-emoji="😱">😱</button>
             <button class="reaction-btn" data-emoji="🔥">🔥</button>
             <button class="reaction-btn" data-emoji="👏">👏</button>
+          </div>
+
+          <!-- Gritos y Frases de Feria ("El Cotorreo") -->
+          <div class="cotorreo-section">
+            <div class="cotorreo-title">🗣️ ¡Cotorreo de Feria!</div>
+            <div class="cotorreo-bar">
+              <button class="cotorreo-btn" data-shout="¡Ya me falta una! 😱">¡Ya me falta una! 😱</button>
+              <button class="cotorreo-btn" data-shout="¡Barájale bien! 🃏">¡Barájale bien! 🃏</button>
+              <button class="cotorreo-btn" data-shout="¡No tan rápido! 🏃">¡No tan rápido! 🏃</button>
+              <button class="cotorreo-btn" data-shout="¡Pásame el frijol! 🫘">¡Pásame el frijol! 🫘</button>
+              <button class="cotorreo-btn" data-shout="¡Chorro! ⚡">¡Chorro! ⚡</button>
+              <button class="cotorreo-btn" data-shout="¡Buenas! 🎺">¡Buenas! 🎺</button>
+            </div>
           </div>
         </div>
 
@@ -353,6 +392,27 @@
         <span>💰 <span data-i18n="potWon">Pot Won:</span> <strong id="winner-pot-amount" style="color: #fde047; font-size: 1.3rem;">0</strong> <span data-i18n="chipsLabel">chips!</span></span>
       </div>
 
+      <!-- Round Podium & Fun Mexican Awards -->
+      <div id="winner-podium-section" class="winner-podium-section">
+        <div class="podium-card podium-gold">
+          <span class="podium-icon">🥇</span>
+          <div class="podium-title" data-i18n="podiumWinner">Gran Ganador</div>
+          <strong id="podium-winner-name" class="podium-player">---</strong>
+        </div>
+        <div class="podium-card podium-silver" id="podium-salado-card">
+          <span class="podium-icon">🥈</span>
+          <div class="podium-title" data-i18n="podiumSalado">"El Salado"</div>
+          <div class="podium-sub" data-i18n="podiumSaladoSub">¡A 1 frijolito!</div>
+          <strong id="podium-salado-name" class="podium-player">---</strong>
+        </div>
+        <div class="podium-card podium-sleep" id="podium-dormilon-card">
+          <span class="podium-icon">😴</span>
+          <div class="podium-title" data-i18n="podiumDormilon">"El Dormilón"</div>
+          <div class="podium-sub" id="podium-dormilon-sub">Cartas pasadas</div>
+          <strong id="podium-dormilon-name" class="podium-player">---</strong>
+        </div>
+      </div>
+
       <div id="winner-host-actions" style="margin-top: 20px; display: none;">
         <button id="btn-restart-round" class="btn-primary" style="font-size: 1.15rem;" data-i18n="btnPlayAgain">Play Another Round!</button>
         <button id="btn-winner-exit-host" class="btn-secondary" style="margin-top: 10px; width: 100%; font-size: 0.95rem;" data-i18n="btnExitRoom">🚪 Leave to Main Menu</button>
@@ -363,6 +423,48 @@
       <div id="winner-guest-actions" style="margin-top: 12px; display: none;">
         <button id="btn-winner-exit-guest" class="btn-secondary" style="width: 100%; font-size: 0.95rem;" data-i18n="btnExitRoom">🚪 Leave to Main Menu</button>
       </div>
+    </div>
+  </div>
+
+  <!-- TOKEN SELECTOR MODAL ("El Costalito de Fichas") -->
+  <div id="token-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 440px;">
+      <div style="font-size: 2.8rem; margin-bottom: 4px;">🫘🪙💰</div>
+      <h3 style="font-size: 1.35rem; margin-bottom: 6px;">El Costalito de Fichas</h3>
+      <p style="font-size: 0.85rem; color: #cbd5e1; margin-bottom: 16px;">Elige tu objeto favorito para marcar tus cartas:</p>
+      
+      <div class="token-grid">
+        <button class="token-choice-btn active" data-token="theme">
+          <span class="token-choice-icon">🎨</span>
+          <span class="token-choice-name">Tema Auto</span>
+        </button>
+        <button class="token-choice-btn" data-token="frijol">
+          <span class="token-choice-icon">🫘</span>
+          <span class="token-choice-name">Frijol Pinto</span>
+        </button>
+        <button class="token-choice-btn" data-token="corcholata">
+          <span class="token-choice-icon">🪙</span>
+          <span class="token-choice-name">Corcholata</span>
+        </button>
+        <button class="token-choice-btn" data-token="moneda">
+          <span class="token-choice-icon">💰</span>
+          <span class="token-choice-name">Moneda $10</span>
+        </button>
+        <button class="token-choice-btn" data-token="maiz">
+          <span class="token-choice-icon">🌽</span>
+          <span class="token-choice-name">Maíz Dorado</span>
+        </button>
+        <button class="token-choice-btn" data-token="calavera">
+          <span class="token-choice-icon">💀</span>
+          <span class="token-choice-name">Calaverita</span>
+        </button>
+        <button class="token-choice-btn" data-token="boton">
+          <span class="token-choice-icon">🔘</span>
+          <span class="token-choice-name">Botón Rústico</span>
+        </button>
+      </div>
+
+      <button id="btn-close-token-modal" class="btn-secondary" style="margin-top: 18px; width: 100%;">Listo / Done</button>
     </div>
   </div>
 
