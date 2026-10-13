@@ -869,6 +869,11 @@ function setupSocketListeners() {
       isGameActive = true;
       document.getElementById('bean-count-badge').textContent = `${myPlacedBeans.size} / 16`;
 
+      if (data.isPaused !== undefined) {
+        const pauseBtn = document.getElementById('btn-toggle-pause');
+        if (pauseBtn) pauseBtn.textContent = data.isPaused ? '▶️' : '⏸️';
+      }
+
       if (document.getElementById('game-cards-left')) {
         document.getElementById('game-cards-left').textContent = t().cardCounter(data.drawnCount, data.totalCards || 54);
       }
@@ -1017,6 +1022,12 @@ function setupSocketListeners() {
     // Card drawn counter
     document.getElementById('game-cards-left').textContent = t().cardCounter(data.drawnCount, data.totalCards);
 
+    // Sync pause button state if present
+    if (data.isPaused !== undefined) {
+      const pauseBtn = document.getElementById('btn-toggle-pause');
+      if (pauseBtn) pauseBtn.textContent = data.isPaused ? '▶️' : '⏸️';
+    }
+
     // Track active game state
     if (data.state !== 'playing') {
       isGameActive = false;
@@ -1033,6 +1044,8 @@ function setupSocketListeners() {
     isGameActive = true;
     myPlacedBeans.clear();
     document.getElementById('bean-count-badge').textContent = '0 / 16';
+    const pauseBtn = document.getElementById('btn-toggle-pause');
+    if (pauseBtn) pauseBtn.textContent = '⏸️';
     // Reset Mobile Caller Strip
     const mName = document.getElementById('mobile-card-name');
     if (mName) mName.textContent = t().waitingToStart;

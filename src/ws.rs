@@ -169,6 +169,7 @@ pub async fn broadcast_room_state(state: &AppState, room_code: &str) {
             "buyIn": room.settings.buy_in,
         },
         "pot": room.pot,
+        "isPaused": room.is_paused,
         "players": sanitized_players,
         "currentCard": current_card_data,
         "drawnCount": room.drawn_cards.len(),
@@ -242,7 +243,7 @@ pub fn spawn_auto_caller(state: AppState, room_code: String, generation: u64, sp
             {
                 let rooms = state.rooms.read().await;
                 if let Some(r) = rooms.get(&room_code) {
-                    if r.game_generation != generation || r.state != RoomState::Playing || r.winner.is_some() {
+                    if r.game_generation != generation || r.state != RoomState::Playing || r.winner.is_some() || r.is_paused {
                         break;
                     }
                 } else {
@@ -300,6 +301,7 @@ pub async fn start_game_session(state: &AppState, room_code: &str) {
     room.current_card = None;
     room.winner = None;
     room.game_generation += 1;
+    room.is_paused = false;
 
     for player in room.players.values_mut() {
         player.beans.clear();
@@ -569,13 +571,14 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                                     let new_gen = room.game_generation;
                                     let is_auto = room.settings.caller_mode == "auto";
                                     let speed = room.settings.speed_seconds;
+                                    let is_paused = room.is_paused;
                                     drop(rooms);
 
                                     // Draw card immediately
                                     let drawn = draw_next_card(&state_clone, &room_code).await;
 
-                                    // If auto mode and game still active, spawn new auto loop that waits the FULL interval from now
-                                    if drawn && is_auto {
+                                    // If auto mode, not paused, and game still active, spawn new auto loop that waits the FULL interval from now
+                                    if drawn && is_auto && !is_paused {
                                         spawn_auto_caller(state_clone.clone(), room_code.clone(), new_gen, speed);
                                     }
                                 }
@@ -586,17 +589,26 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                             let pid = current_player_id.as_deref().unwrap_or(&conn_id_clone);
                             let mut rooms = state_clone.rooms.write().await;
                             if let Some(room) = rooms.get_mut(&room_code) {
-                                if room.host_id == pid && room.state == RoomState::Playing {
-                                    // Bump generation to pause any running background auto task
+                                if room.host_id == pid && room.state == RoomState::Playing && room.winner.is_none() {
+                                    room.is_paused = !room.is_paused;
+                                    let is_paused = room.is_paused;
                                     room.game_generation += 1;
+                                    let new_gen = room.game_generation;
+                                    let is_auto = room.settings.caller_mode == "auto";
+                                    let speed = room.settings.speed_seconds;
                                     drop(rooms);
+
                                     broadcast_event(
                                         &state_clone,
                                         &room_code,
                                         "game_paused",
-                                        json!({ "isPaused": true }),
+                                        json!({ "isPaused": is_paused }),
                                     )
                                     .await;
+
+                                    if !is_paused && is_auto {
+                                        spawn_auto_caller(state_clone.clone(), room_code.clone(), new_gen, speed);
+                                    }
                                 }
                             }
                         }
@@ -754,6 +766,7 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                                     let winner = room.winner.clone();
                                     let sanitized_players = room.sanitize_players();
                                     let pot = room.pot;
+                                    let is_paused = room.is_paused;
                                     drop(rooms);
 
                                     // Register new socket channel
@@ -775,6 +788,7 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                                             "player": player_clone,
                                             "roomState": room_state,
                                             "settings": settings,
+                                            "isPaused": is_paused,
                                             "currentCard": current_card_data,
                                             "drawnCount": drawn_count,
                                             "totalCards": 54,

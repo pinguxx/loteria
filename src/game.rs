@@ -118,6 +118,7 @@ pub struct Room {
     pub pot: u32,
     // Generation counter used to cancel old game loops when starting new games/rounds
     pub game_generation: u64,
+    pub is_paused: bool,
 }
 
 impl Room {
@@ -148,6 +149,7 @@ impl Room {
             players,
             pot: 0,
             game_generation: 0,
+            is_paused: false,
         }
     }
 
