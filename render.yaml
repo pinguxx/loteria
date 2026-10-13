@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: loteria-mexicana
+    runtime: docker
+    plan: free
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 3000

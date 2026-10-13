@@ -35,6 +35,8 @@
     <div class="header-actions">
       <!-- Leave Room Button (Visible during lobby and game) -->
       <button id="btn-header-leave" class="btn-icon header-leave-btn" style="display: none;" title="Leave Room / Salir">🚪 <span data-i18n="leaveRoom">Leave</span></button>
+      <!-- Theme Switcher (Fiesta Clásica, Día de los Muertos, Vintage 1950s) -->
+      <button id="btn-toggle-theme" class="btn-icon" title="Theme / Tema (Fiesta / Muertos / Vintage)">🎨</button>
       <!-- Language Switcher Toggle (Defaults to English) -->
       <button id="btn-toggle-lang" class="btn-icon" style="width: auto; padding: 0 12px; border-radius: 18px; font-weight: 800; font-size: 0.82rem;" title="Switch Language / Cambiar Idioma">🌐 Español</button>
       <button id="btn-toggle-sound" class="btn-icon" title="Sound Effects">🔊</button>
@@ -115,6 +117,16 @@
             </label>
           </div>
 
+          <div class="form-group" style="margin-top: 10px;">
+            <label for="create-chips" data-i18n="labelChips">Betting Chips / Pozo</label>
+            <select id="create-chips" class="form-control">
+              <option value="0" data-i18n="chipsOff">🚫 No Chips (Free Play)</option>
+              <option value="5" selected data-i18n="chips5">💰 5 Fichas Buy-in</option>
+              <option value="10" data-i18n="chips10">💰 10 Fichas Buy-in</option>
+              <option value="20" data-i18n="chips20">💰 20 Fichas Buy-in</option>
+            </select>
+          </div>
+
           <button type="submit" class="btn-primary" style="margin-top: 14px;" data-i18n="btnCreate">Create Room & Play!</button>
         </form>
 
@@ -143,6 +155,18 @@
           <span data-i18n="codeLabel">Code:</span>
           <span id="lobby-room-code" class="room-code-display">-----</span>
           <button id="btn-copy-code" class="copy-btn" data-i18n="btnCopy">Copy</button>
+          <button id="btn-toggle-qr" class="copy-btn qr-badge-btn" title="Show QR Code / Código QR">📱 QR</button>
+        </div>
+      </div>
+
+      <!-- Scannable QR Code Panel -->
+      <div id="lobby-qr-card" class="qr-card-panel" style="display: none;">
+        <div class="qr-card-content">
+          <div id="lobby-qrcode" class="qrcode-wrapper"></div>
+          <div class="qr-card-text">
+            <h4 data-i18n="qrTitle">📱 Scan to Join Game</h4>
+            <p data-i18n="qrSubtitle">Point phone camera to join directly without typing code</p>
+          </div>
         </div>
       </div>
 
@@ -196,6 +220,7 @@
           <div class="mobile-card-heading">
             <strong id="mobile-card-name">Waiting...</strong>
             <span id="mobile-card-english">Mexican Loteria</span>
+            <span id="mobile-pot-badge" class="pot-badge" style="display: none;">💰 <span id="mobile-pot-val">0</span></span>
             <span id="mobile-cards-left" class="count-pill">0/54</span>
           </div>
           <div id="mobile-verse-es" class="mobile-verse-es">"Barajando el mazo de cartas..."</div>
@@ -213,7 +238,10 @@
               <span class="caller-title" data-i18n="callerTitle">The Caller</span>
               <div id="game-cards-left" class="caller-counter">Card 0 / 54</div>
             </div>
-            <div id="game-rule-badge" class="rule-badge">Full Board</div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <div id="game-pot-badge" class="pot-badge" style="display: none;">💰 <span data-i18n="potLabel">Pozo:</span> <span id="game-pot-val">0</span></div>
+              <div id="game-rule-badge" class="rule-badge">Full Board</div>
+            </div>
           </div>
 
 
@@ -317,6 +345,11 @@
         <div id="winner-tabla-preview" class="loteria-tabla" style="max-width: 280px; gap: 4px; padding: 8px;"></div>
       </div>
 
+      <!-- Winner prize pot banner -->
+      <div id="winner-pot-banner" class="winner-pot-banner" style="display: none;">
+        <span>💰 <span data-i18n="potWon">Pot Won:</span> <strong id="winner-pot-amount" style="color: #fde047; font-size: 1.3rem;">0</strong> <span data-i18n="chipsLabel">chips!</span></span>
+      </div>
+
       <div id="winner-host-actions" style="margin-top: 20px; display: none;">
         <button id="btn-restart-round" class="btn-primary" style="font-size: 1.15rem;" data-i18n="btnPlayAgain">Play Another Round!</button>
         <button id="btn-winner-exit-host" class="btn-secondary" style="margin-top: 10px; width: 100%; font-size: 0.95rem;" data-i18n="btnExitRoom">🚪 Leave to Main Menu</button>
@@ -336,6 +369,8 @@
 
   <!-- Confetti Canvas Support (Loaded from CDN with local fallback in app.js) -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <!-- Pure Standalone Offline QR Code Generator -->
+  <script src="qrcode.min.js"></script>
   <!-- Audio Synthesizer -->
   <script src="audio.js"></script>
   <!-- Main Game Client Script -->

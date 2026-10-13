@@ -157,6 +157,26 @@ class LoteriaAudio {
     });
   }
 
+  // Coins jingle sound when collecting the pot
+  playCoinWin() {
+    if (!this.enabled) return;
+    this.init();
+    const t = this.ctx.currentTime;
+    const coinNotes = [987.77, 1318.51, 1567.98, 2093.00]; // B5, E6, G6, C7
+    coinNotes.forEach((f, i) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, t + i * 0.08);
+      gain.gain.setValueAtTime(0.25, t + i * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.35);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t + i * 0.08);
+      osc.stop(t + i * 0.08 + 0.35);
+    });
+  }
+
   // Speech synthesis: "El Cantor" chanting the card name and rhyme
   speakCard(name, verse, nameEn = null, verseEn = null, preferEnglish = false) {
     if (!this.speechEnabled || !('speechSynthesis' in window)) return;

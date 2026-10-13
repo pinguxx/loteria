@@ -161,7 +161,22 @@ const TRANSLATIONS = {
     badgeCenter: '🎯 Center',
     resumeTitle: 'Game in Progress',
     btnResume: '▶️ Resume',
-    toastReconnected: (code) => `Reconnected to room ${code}!`
+    toastReconnected: (code) => `Reconnected to room ${code}!`,
+    labelChips: 'Betting Chips / Pozo',
+    chipsOff: '🚫 No Chips (Free Play)',
+    chips5: '💰 5 Chips Buy-in',
+    chips10: '💰 10 Chips Buy-in',
+    chips20: '💰 20 Chips Buy-in',
+    potLabel: 'Pot:',
+    potWon: 'Pot Won:',
+    chipsLabel: 'chips',
+    qrTitle: '📱 Scan to Join Game',
+    qrSubtitle: 'Point phone camera to join directly without typing code',
+    qrBtn: '📱 QR',
+    themeChanged: (name) => `Theme changed to: ${name}`,
+    themeFiesta: 'Fiesta Clásica',
+    themeMuertos: 'Día de los Muertos',
+    themeVintage: 'Vintage Feria 1950s'
   },
   es: {
     appTitle: 'LOTERÍA',
@@ -239,7 +254,22 @@ const TRANSLATIONS = {
     badgeCenter: '🎯 Centro',
     resumeTitle: 'Partida en Curso',
     btnResume: '▶️ Reanudar',
-    toastReconnected: (code) => `¡Reconectado a la sala ${code}!`
+    toastReconnected: (code) => `¡Reconectado a la sala ${code}!`,
+    labelChips: 'Fichas de Apuesta / Pozo',
+    chipsOff: '🚫 Sin Fichas (Juego Libre)',
+    chips5: '💰 Entrada de 5 Fichas',
+    chips10: '💰 Entrada de 10 Fichas',
+    chips20: '💰 Entrada de 20 Fichas',
+    potLabel: 'Pozo:',
+    potWon: '¡Pozo Ganado!:',
+    chipsLabel: 'fichas',
+    qrTitle: '📱 Escanea para Entrar',
+    qrSubtitle: 'Apunta la cámara de tu celular para unirte sin escribir el código',
+    qrBtn: '📱 QR',
+    themeChanged: (name) => `Tema cambiado a: ${name}`,
+    themeFiesta: 'Fiesta Clásica',
+    themeMuertos: 'Día de los Muertos',
+    themeVintage: 'Feria Vintage 1950'
   }
 };
 
@@ -324,6 +354,14 @@ function applyLanguage(lang) {
     speedSelect.options[3].text = tr.speedChill;
   }
 
+  const chipsSelect = document.getElementById('create-chips');
+  if (chipsSelect) {
+    chipsSelect.options[0].text = tr.chipsOff;
+    chipsSelect.options[1].text = tr.chips5;
+    chipsSelect.options[2].text = tr.chips10;
+    chipsSelect.options[3].text = tr.chips20;
+  }
+
   // Update rule badges
   updateRuleBadges();
 
@@ -346,6 +384,70 @@ function updateRuleBadges() {
   const gameBadge = document.getElementById('game-rule-badge');
   if (lobbyBadge) lobbyBadge.textContent = patternText;
   if (gameBadge) gameBadge.textContent = patternText;
+}
+
+// Theme Manager (Fiesta Clásica, Día de los Muertos, Vintage Feria 1950s)
+let currentTheme = localStorage.getItem('loteria_theme') || 'fiesta';
+
+function applyTheme(themeName) {
+  currentTheme = themeName;
+  localStorage.setItem('loteria_theme', themeName);
+  document.body.dataset.theme = themeName;
+
+  const themeBtn = document.getElementById('btn-toggle-theme');
+  if (themeBtn) {
+    if (themeName === 'muertos') {
+      themeBtn.textContent = '💀';
+      themeBtn.title = 'Día de los Muertos';
+    } else if (themeName === 'vintage') {
+      themeBtn.textContent = '📜';
+      themeBtn.title = 'Vintage Feria 1950s';
+    } else {
+      themeBtn.textContent = '🎨';
+      themeBtn.title = 'Fiesta Clásica';
+    }
+  }
+
+  // Re-render QR code with theme-appropriate dark color if open
+  if (currentRoomCode) {
+    const qrPanel = document.getElementById('lobby-qr-card');
+    if (qrPanel && qrPanel.style.display !== 'none') {
+      renderLobbyQRCode(currentRoomCode);
+    }
+  }
+}
+
+function cycleTheme() {
+  const themes = ['fiesta', 'muertos', 'vintage'];
+  const nextIdx = (themes.indexOf(currentTheme) + 1) % themes.length;
+  const nextTheme = themes[nextIdx];
+  applyTheme(nextTheme);
+
+  const tr = t();
+  const themeName = nextTheme === 'muertos' ? tr.themeMuertos : (nextTheme === 'vintage' ? tr.themeVintage : tr.themeFiesta);
+  showToast(tr.themeChanged(themeName));
+}
+
+// Pure Local QR Code Generator for Lobby Sharing
+let qrcodeInstance = null;
+
+function renderLobbyQRCode(roomCode) {
+  const container = document.getElementById('lobby-qrcode');
+  if (!container || !window.QRCode || !roomCode) return;
+
+  container.innerHTML = '';
+  const joinUrl = `${window.location.protocol}//${window.location.host}/?room=${roomCode}`;
+
+  const darkColor = currentTheme === 'muertos' ? '#180828' : (currentTheme === 'vintage' ? '#3d2616' : '#1e1b18');
+
+  qrcodeInstance = new QRCode(container, {
+    text: joinUrl,
+    width: 130,
+    height: 130,
+    colorDark: darkColor,
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+  });
 }
 
 function saveLocalSession(roomCode, player, isHost) {
@@ -604,8 +706,9 @@ function renderRoomPlayers(data) {
           ${isMe ? `<span style="font-size: 0.75rem; color: #f59e0b;">${tr.youTag}</span>` : ''}
           ${p.isHost ? `<span class="host-tag">${tr.hostTag}</span>` : ''}
         </div>
-        <div style="font-size: 0.85rem; color: #cbd5e1;">
+        <div style="font-size: 0.85rem; color: #cbd5e1; display: flex; align-items: center; gap: 8px;">
           ${tr.winsBadge(p.wins)}
+          ${p.chips !== undefined ? `<span class="player-chips-badge">💰 ${p.chips}</span>` : ''}
         </div>
       `;
       playersListEl.appendChild(item);
@@ -621,6 +724,7 @@ function renderRoomPlayers(data) {
       chip.className = `player-chip ${isMe ? 'is-me' : ''}`;
       chip.innerHTML = `
         <strong>${p.name}</strong>: 🫘 ${p.beansCount}
+        ${p.chips !== undefined ? `<span style="color: #fde047; font-size: 0.75rem; margin-left: 4px;">(💰${p.chips})</span>` : ''}
       `;
       scoreboardEl.appendChild(chip);
     });
@@ -644,6 +748,7 @@ function setupSocketListeners() {
     document.getElementById('lobby-guest-msg').style.display = 'none';
 
     renderTabla(document.getElementById('preview-tabla'), myPlayer.tabla);
+    renderLobbyQRCode(roomCode);
     showScreen('lobby');
     showToast(t().toastRoomCreated(roomCode));
   });
@@ -667,6 +772,7 @@ function setupSocketListeners() {
     }
 
     renderTabla(document.getElementById('preview-tabla'), myPlayer.tabla);
+    renderLobbyQRCode(roomCode);
     showScreen('lobby');
     showToast(t().toastJoined(roomCode));
   });
@@ -688,6 +794,15 @@ function setupSocketListeners() {
     document.getElementById('game-room-code-tag').textContent = data.roomCode;
     updateRuleBadges();
     if (data.players) renderRoomPlayers(data);
+    renderLobbyQRCode(data.roomCode);
+
+    // Pot badges update
+    const potBadges = [document.getElementById('game-pot-badge'), document.getElementById('mobile-pot-badge')];
+    const potVals = [document.getElementById('game-pot-val'), document.getElementById('mobile-pot-val')];
+    const hasChips = data.settings && data.settings.enableChips;
+    const potAmount = data.pot || 0;
+    potBadges.forEach(b => { if (b) b.style.display = hasChips ? 'inline-flex' : 'none'; });
+    potVals.forEach(v => { if (v) v.textContent = potAmount; });
 
     if (data.roomState === 'playing') {
       isGameActive = true;
@@ -814,6 +929,14 @@ function setupSocketListeners() {
 
     updateRuleBadges();
     renderRoomPlayers(data);
+
+    // Pot badges update
+    const potBadges = [document.getElementById('game-pot-badge'), document.getElementById('mobile-pot-badge')];
+    const potVals = [document.getElementById('game-pot-val'), document.getElementById('mobile-pot-val')];
+    const hasChips = data.settings && data.settings.enableChips;
+    const potAmount = data.pot || 0;
+    potBadges.forEach(b => { if (b) b.style.display = hasChips ? 'inline-flex' : 'none'; });
+    potVals.forEach(v => { if (v) v.textContent = potAmount; });
 
     // Host controls visibility
     if (isHost) {
@@ -963,10 +1086,23 @@ function setupSocketListeners() {
   });
 
   // 9. Legitimate Winner Announcement
-  socket.on('loteria_winner', ({ winner, message }) => {
+  socket.on('loteria_winner', ({ winner, message, potPrize }) => {
     isGameActive = false;
     window.loteriaAudio.stopSpeech();
     window.loteriaAudio.playFanfare();
+
+    if (potPrize && potPrize > 0) {
+      setTimeout(() => window.loteriaAudio.playCoinWin(), 600);
+      const potBanner = document.getElementById('winner-pot-banner');
+      if (potBanner) {
+        document.getElementById('winner-pot-amount').textContent = potPrize;
+        potBanner.style.display = 'block';
+      }
+    } else {
+      const potBanner = document.getElementById('winner-pot-banner');
+      if (potBanner) potBanner.style.display = 'none';
+    }
+
     launchConfetti();
 
     document.getElementById('winner-message').textContent = message;
@@ -1020,6 +1156,12 @@ function setupUIEventListeners() {
     showToast(nextLang === 'en' ? 'Interface switched to English' : 'Interfaz cambiada a Español');
   });
 
+  // Theme Switcher (Fiesta Clásica, Día de los Muertos, Vintage Feria 1950s)
+  const themeBtn = document.getElementById('btn-toggle-theme');
+  if (themeBtn) {
+    themeBtn.addEventListener('click', cycleTheme);
+  }
+
   // Tabs
   document.getElementById('tab-create').addEventListener('click', () => switchTab('create'));
   document.getElementById('tab-join').addEventListener('click', () => switchTab('join'));
@@ -1037,10 +1179,13 @@ function setupUIEventListeners() {
     const callerMode = document.getElementById('create-mode').value;
     const speedSeconds = parseInt(document.getElementById('create-speed').value, 10) || 7;
     const verseAudio = document.getElementById('create-verse-audio').checked;
+    const chipsVal = parseInt(document.getElementById('create-chips').value, 10) || 0;
+    const enableChips = chipsVal > 0;
+    const buyIn = chipsVal;
 
     socket.emit('create_room', {
       playerName: name,
-      settings: { winPattern, callerMode, speedSeconds, verseAudio }
+      settings: { winPattern, callerMode, speedSeconds, verseAudio, enableChips, buyIn }
     });
   });
 
@@ -1067,6 +1212,21 @@ function setupUIEventListeners() {
       showToast(t().toastCodeCopied(currentRoomCode));
     });
   });
+
+  // Toggle QR Code Card
+  const qrBtn = document.getElementById('btn-toggle-qr');
+  if (qrBtn) {
+    qrBtn.addEventListener('click', () => {
+      const qrPanel = document.getElementById('lobby-qr-card');
+      if (qrPanel) {
+        const isHidden = qrPanel.style.display === 'none';
+        qrPanel.style.display = isHidden ? 'block' : 'none';
+        if (isHidden && currentRoomCode) {
+          renderLobbyQRCode(currentRoomCode);
+        }
+      }
+    });
+  }
 
   // Shuffle My Tabla (in lobby)
   document.getElementById('btn-shuffle-tabla').addEventListener('click', () => {
@@ -1202,8 +1362,9 @@ async function init() {
     console.error('Error fetching cards:', err);
   }
 
-  // Apply chosen/default language
+  // Apply chosen/default language & theme
   applyLanguage(currentLang);
+  applyTheme(currentTheme);
 
   // Check if a previous game session is available to resume
   checkResumeBanner();
@@ -1218,7 +1379,10 @@ async function init() {
   const roomParam = urlParams.get('room');
   if (roomParam) {
     switchTab('join');
-    document.getElementById('join-code').value = roomParam.toUpperCase();
+    const joinCodeInput = document.getElementById('join-code');
+    if (joinCodeInput) joinCodeInput.value = roomParam.toUpperCase();
+    const joinNameInput = document.getElementById('join-name');
+    if (joinNameInput) joinNameInput.focus();
   }
 }
 

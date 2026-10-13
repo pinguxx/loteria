@@ -165,7 +165,10 @@ pub async fn broadcast_room_state(state: &AppState, room_code: &str) {
             "callerMode": room.settings.caller_mode,
             "speedSeconds": room.settings.speed_seconds,
             "verseAudio": room.settings.verse_audio,
+            "enableChips": room.settings.enable_chips,
+            "buyIn": room.settings.buy_in,
         },
+        "pot": room.pot,
         "players": sanitized_players,
         "currentCard": current_card_data,
         "drawnCount": room.drawn_cards.len(),
@@ -300,6 +303,20 @@ pub async fn start_game_session(state: &AppState, room_code: &str) {
 
     for player in room.players.values_mut() {
         player.beans.clear();
+    }
+
+    if room.settings.enable_chips && room.settings.buy_in > 0 {
+        let buy_in = room.settings.buy_in;
+        for player in room.players.values_mut() {
+            if player.connected {
+                if player.chips < buy_in {
+                    player.chips = player.chips.max(10);
+                }
+                let deduction = buy_in.min(player.chips);
+                player.chips -= deduction;
+                room.pot += deduction;
+            }
+        }
     }
 
     let settings = room.settings.clone();
@@ -456,6 +473,7 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                                     ready: true,
                                     connected: true,
                                     conn_id: conn_id_clone.clone(),
+                                    chips: 50,
                                 };
 
                                 let is_host = room.host_id == conn_id_clone;
@@ -624,6 +642,10 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                                         room.game_generation += 1;
                                         player.wins += 1;
 
+                                        let pot_prize = room.pot;
+                                        player.chips += pot_prize;
+                                        room.pot = 0;
+
                                         let winner_info = WinnerInfo {
                                              id: player.id.clone(),
                                             name: player.name.clone(),
@@ -641,7 +663,8 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                                             "loteria_winner",
                                             json!({
                                                 "winner": winner_info,
-                                                "message": format!("¡{} has won shouting LOTERÍA!", winner_name)
+                                                "message": format!("¡{} has won shouting LOTERÍA!", winner_name),
+                                                "potPrize": pot_prize
                                             }),
                                         )
                                         .await;
@@ -730,6 +753,7 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                                     let recent_cards: Vec<u8> = room.drawn_cards.iter().rev().take(6).copied().collect();
                                     let winner = room.winner.clone();
                                     let sanitized_players = room.sanitize_players();
+                                    let pot = room.pot;
                                     drop(rooms);
 
                                     // Register new socket channel
@@ -756,7 +780,8 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                                             "totalCards": 54,
                                             "recentCards": recent_cards,
                                             "winner": winner,
-                                            "players": sanitized_players
+                                            "players": sanitized_players,
+                                            "pot": pot
                                         }),
                                     );
 

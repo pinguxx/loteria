@@ -13,6 +13,10 @@ pub struct GameSettings {
     pub speed_seconds: u64, // e.g. 7
     #[serde(default = "default_verse_audio")]
     pub verse_audio: bool,
+    #[serde(default = "default_enable_chips")]
+    pub enable_chips: bool,
+    #[serde(default = "default_buy_in")]
+    pub buy_in: u32,
 }
 
 fn default_win_pattern() -> String {
@@ -27,6 +31,12 @@ fn default_speed_seconds() -> u64 {
 fn default_verse_audio() -> bool {
     true
 }
+fn default_enable_chips() -> bool {
+    false
+}
+fn default_buy_in() -> u32 {
+    5
+}
 
 impl Default for GameSettings {
     fn default() -> Self {
@@ -35,6 +45,8 @@ impl Default for GameSettings {
             caller_mode: default_caller_mode(),
             speed_seconds: default_speed_seconds(),
             verse_audio: default_verse_audio(),
+            enable_chips: default_enable_chips(),
+            buy_in: default_buy_in(),
         }
     }
 }
@@ -51,10 +63,15 @@ pub struct Player {
     pub connected: bool,
     #[serde(default)]
     pub conn_id: String,
+    #[serde(default = "default_chips")]
+    pub chips: u32,
 }
 
 fn default_connected() -> bool {
     true
+}
+fn default_chips() -> u32 {
+    50
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -84,6 +101,7 @@ pub struct SanitizedPlayer {
     pub wins: u32,
     pub ready: bool,
     pub connected: bool,
+    pub chips: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -97,6 +115,7 @@ pub struct Room {
     pub current_card: Option<u8>,
     pub winner: Option<WinnerInfo>,
     pub players: HashMap<String, Player>,
+    pub pot: u32,
     // Generation counter used to cancel old game loops when starting new games/rounds
     pub game_generation: u64,
 }
@@ -113,6 +132,7 @@ impl Room {
             ready: true,
             connected: true,
             conn_id: host_id.clone(),
+            chips: 50,
         };
         players.insert(host_id.clone(), host_player);
 
@@ -126,6 +146,7 @@ impl Room {
             current_card: None,
             winner: None,
             players,
+            pot: 0,
             game_generation: 0,
         }
     }
@@ -141,6 +162,7 @@ impl Room {
                 wins: p.wins,
                 ready: p.ready,
                 connected: p.connected,
+                chips: p.chips,
             })
             .collect()
     }
