@@ -525,12 +525,74 @@ body {
   }
 }
 
-@keyframes drawerDrop {
-  0% { opacity: 0; transform: translateY(-10px); }
-  100% { opacity: 1; transform: translateY(0); }
+/* Active Game Resume Banner */
+.resume-banner {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+  border: 2px solid #fbbf24;
+  border-radius: 16px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 15px rgba(251, 191, 36, 0.2);
+  animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.resume-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.resume-icon {
+  font-size: 1.8rem;
+}
+
+.resume-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #fbbf24;
+  letter-spacing: 0.5px;
+}
+
+.resume-sub {
+  font-size: 0.82rem;
+  color: #cbd5e1;
+  margin-top: 2px;
+}
+
+.resume-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.resume-btn {
+  padding: 8px 16px !important;
+  font-size: 0.88rem !important;
+  border-radius: 10px !important;
+  white-space: nowrap !important;
+}
+
+.resume-dismiss {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  font-size: 0.8rem !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #94a3b8 !important;
+}
+
+.resume-dismiss:hover {
+  background: rgba(239, 68, 68, 0.4) !important;
+  color: #ffffff !important;
 }
 
 .header-leave-btn {
+
   width: auto !important;
   padding: 0 12px !important;
   border-radius: 18px !important;

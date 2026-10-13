@@ -48,11 +48,29 @@
 
     <!-- 1. WELCOME / JOIN SCREEN -->
     <section id="screen-welcome" class="screen active">
+      <!-- Active Game Resume Banner -->
+      <div id="resume-banner" class="resume-banner" style="display: none;">
+        <div class="resume-info">
+          <span class="resume-icon">🎮</span>
+          <div>
+            <div class="resume-title" data-i18n="resumeTitle">Game in Progress</div>
+            <div class="resume-sub">
+              <span data-i18n="roomTag">ROOM:</span> <strong id="resume-room-code" style="color: #fde047; letter-spacing: 1.5px;">-----</strong> • <span id="resume-player-name">Player</span>
+            </div>
+          </div>
+        </div>
+        <div class="resume-actions">
+          <button id="btn-resume-game" class="btn-primary resume-btn" data-i18n="btnResume">▶️ Resume</button>
+          <button id="btn-dismiss-resume" class="btn-icon resume-dismiss" title="Dismiss">✖</button>
+        </div>
+      </div>
+
       <div class="welcome-card">
         <div class="tabs">
           <button class="tab-btn active" id="tab-create" data-i18n="tabCreate">Create Room</button>
           <button class="tab-btn" id="tab-join" data-i18n="tabJoin">Join Room</button>
         </div>
+
 
         <!-- Create Form -->
         <form id="form-create">

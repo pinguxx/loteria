@@ -21,7 +21,23 @@ class RustLoteriaSocket {
       if (this.handlers['connect']) {
         this.handlers['connect'].forEach(cb => cb());
       }
+      // Auto-reconnect session if found in localStorage
+      const rawSession = localStorage.getItem('loteria_session');
+      if (rawSession) {
+        try {
+          const session = JSON.parse(rawSession);
+          if (session && session.roomCode && session.playerId) {
+            this.emit('reconnect_session', {
+              roomCode: session.roomCode,
+              playerId: session.playerId
+            });
+          }
+        } catch (e) {
+          localStorage.removeItem('loteria_session');
+        }
+      }
     };
+
 
     this.ws.onmessage = (event) => {
       try {
@@ -142,7 +158,10 @@ const TRANSLATIONS = {
     badgeFull: '🏆 Full Board',
     badgeLine: '📏 Any Line',
     badgeCorners: '📐 4 Corners',
-    badgeCenter: '🎯 Center'
+    badgeCenter: '🎯 Center',
+    resumeTitle: 'Game in Progress',
+    btnResume: '▶️ Resume',
+    toastReconnected: (code) => `Reconnected to room ${code}!`
   },
   es: {
     appTitle: 'LOTERÍA',
@@ -217,9 +236,13 @@ const TRANSLATIONS = {
     badgeFull: '🏆 Tabla Llena',
     badgeLine: '📏 Una Línea',
     badgeCorners: '📐 4 Esquinas',
-    badgeCenter: '🎯 Centro'
+    badgeCenter: '🎯 Centro',
+    resumeTitle: 'Partida en Curso',
+    btnResume: '▶️ Reanudar',
+    toastReconnected: (code) => `¡Reconectado a la sala ${code}!`
   }
 };
+
 
 
 // Local player state
@@ -322,6 +345,45 @@ function updateRuleBadges() {
   if (gameBadge) gameBadge.textContent = patternText;
 }
 
+function saveLocalSession(roomCode, player, isHost) {
+  try {
+    const session = {
+      roomCode,
+      playerId: player.id,
+      playerName: player.name,
+      isHost,
+      timestamp: Date.now()
+    };
+    localStorage.setItem('loteria_session', JSON.stringify(session));
+  } catch (e) {
+    console.warn('Could not save session:', e);
+  }
+}
+
+function clearLocalSession() {
+  localStorage.removeItem('loteria_session');
+  const banner = document.getElementById('resume-banner');
+  if (banner) banner.style.display = 'none';
+}
+
+function checkResumeBanner() {
+  const banner = document.getElementById('resume-banner');
+  if (!banner) return;
+  const raw = localStorage.getItem('loteria_session');
+  if (!raw) {
+    banner.style.display = 'none';
+    return;
+  }
+  try {
+    const session = JSON.parse(raw);
+    document.getElementById('resume-room-code').textContent = session.roomCode;
+    document.getElementById('resume-player-name').textContent = session.playerName;
+    banner.style.display = 'flex';
+  } catch (e) {
+    banner.style.display = 'none';
+  }
+}
+
 function showScreen(name) {
   Object.values(screens).forEach(s => s && s.classList.remove('active'));
   if (screens[name]) {
@@ -330,6 +392,9 @@ function showScreen(name) {
   const headerLeaveBtn = document.getElementById('btn-header-leave');
   if (headerLeaveBtn) {
     headerLeaveBtn.style.display = (name === 'welcome') ? 'none' : 'inline-flex';
+  }
+  if (name === 'welcome') {
+    checkResumeBanner();
   }
 }
 
@@ -354,6 +419,8 @@ function leaveCurrentRoom(skipConfirm = false) {
   myPlacedBeans.clear();
   latestRoomData = null;
 
+  clearLocalSession();
+
   if (window.history.pushState) {
     const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
     window.history.pushState({ path: cleanUrl }, '', cleanUrl);
@@ -362,6 +429,7 @@ function leaveCurrentRoom(skipConfirm = false) {
   showScreen('welcome');
   showToast(t().toastLeftRoom);
 }
+
 
 
 function switchTab(tab) {
@@ -557,6 +625,8 @@ function setupSocketListeners() {
     socket.id = player.id;
     currentRoomCode = roomCode;
     myPlayer = { ...player, isHost };
+    saveLocalSession(roomCode, player, isHost);
+
     document.getElementById('lobby-room-code').textContent = roomCode;
     document.getElementById('game-room-code-tag').textContent = roomCode;
 
@@ -573,6 +643,8 @@ function setupSocketListeners() {
     socket.id = player.id;
     currentRoomCode = roomCode;
     myPlayer = { ...player, isHost };
+    saveLocalSession(roomCode, player, isHost);
+
     document.getElementById('lobby-room-code').textContent = roomCode;
     document.getElementById('game-room-code-tag').textContent = roomCode;
 
@@ -588,6 +660,102 @@ function setupSocketListeners() {
     showScreen('lobby');
     showToast(t().toastJoined(roomCode));
   });
+
+  // Session Restored (After Page Refresh or Reconnecting)
+  socket.on('session_restored', (data) => {
+    socket.id = data.player.id;
+    currentRoomCode = data.roomCode;
+    myPlayer = { ...data.player, isHost: data.isHost };
+    currentSettings = data.settings;
+    latestRoomData = data;
+    myPlacedBeans = new Set(data.player.beans || []);
+
+    saveLocalSession(data.roomCode, data.player, data.isHost);
+    const resumeBanner = document.getElementById('resume-banner');
+    if (resumeBanner) resumeBanner.style.display = 'none';
+
+    document.getElementById('lobby-room-code').textContent = data.roomCode;
+    document.getElementById('game-room-code-tag').textContent = data.roomCode;
+    updateRuleBadges();
+
+    if (data.roomState === 'playing') {
+      isGameActive = true;
+      document.getElementById('bean-count-badge').textContent = `${myPlacedBeans.size} / 16`;
+
+      // Update Desktop Active Card if present
+      if (data.currentCard) {
+        const card = data.currentCard;
+        const activeCardEl = document.getElementById('active-card');
+        document.getElementById('active-card-num').textContent = card.id;
+        document.getElementById('active-card-art').textContent = card.emoji;
+        document.getElementById('active-card-name').textContent = card.name;
+        document.getElementById('active-card-english').textContent = card.english;
+        const verseEsEl = document.getElementById('active-verse-es');
+        const verseEnEl = document.getElementById('active-verse-en');
+        if (verseEsEl) verseEsEl.textContent = `"${card.verse}"`;
+        if (verseEnEl) verseEnEl.textContent = card.verseEnglish ? `"${card.verseEnglish}"` : '';
+        if (activeCardEl) activeCardEl.style.backgroundColor = card.color || '#fffbeb';
+
+        // Update Mobile Strip
+        const mobNum = document.getElementById('mobile-card-num');
+        if (mobNum) mobNum.textContent = card.id;
+        const mobArt = document.getElementById('mobile-card-art');
+        if (mobArt) mobArt.textContent = card.emoji;
+        const mobName = document.getElementById('mobile-card-name');
+        if (mobName) mobName.textContent = card.name;
+        const mobEng = document.getElementById('mobile-card-english');
+        if (mobEng) mobEng.textContent = card.english;
+        const mobCount = document.getElementById('mobile-cards-left');
+        if (mobCount) mobCount.textContent = `${data.drawnCount}/54`;
+        const mobVerseEs = document.getElementById('mobile-verse-es');
+        if (mobVerseEs) mobVerseEs.textContent = `"${card.verse}"`;
+        const mobVerseEn = document.getElementById('mobile-verse-en');
+        if (mobVerseEn) mobVerseEn.textContent = card.verseEnglish ? `"${card.verseEnglish}"` : '';
+      }
+
+      // Restore History Tray
+      const tray = document.getElementById('history-tray');
+      if (tray && data.recentCards) {
+        tray.innerHTML = '';
+        data.recentCards.forEach(cid => {
+          const c = CARDS_MAP.get(cid);
+          if (!c) return;
+          const mini = document.createElement('div');
+          mini.className = 'history-card-mini';
+          mini.title = `${c.id}. ${c.name} (${c.english})`;
+          mini.style.backgroundColor = c.color || '#fffbeb';
+          mini.innerHTML = `<span class="mini-num">${c.id}</span><span>${c.emoji}</span>`;
+          tray.appendChild(mini);
+        });
+      }
+
+      // Render interactive board with beans
+      renderTabla(document.getElementById('game-tabla'), myPlayer.tabla, true, myPlacedBeans);
+
+      // Host controls
+      const hostControls = document.getElementById('host-game-controls');
+      if (hostControls) hostControls.style.display = data.isHost ? 'flex' : 'none';
+
+      showScreen('game');
+    } else {
+      isGameActive = false;
+      renderTabla(document.getElementById('preview-tabla'), myPlayer.tabla);
+
+      const hostControls = document.getElementById('lobby-host-controls');
+      const guestMsg = document.getElementById('lobby-guest-msg');
+      if (hostControls) hostControls.style.display = data.isHost ? 'block' : 'none';
+      if (guestMsg) guestMsg.style.display = data.isHost ? 'none' : 'block';
+
+      showScreen('lobby');
+    }
+
+    showToast(t().toastReconnected(data.roomCode));
+  });
+
+  socket.on('reconnect_failed', () => {
+    clearLocalSession();
+  });
+
 
   // 3. Join Error
   socket.on('join_error', ({ message }) => {
@@ -964,6 +1132,29 @@ function setupUIEventListeners() {
   if (winExitGuest) {
     winExitGuest.addEventListener('click', () => leaveCurrentRoom(true));
   }
+
+  // Resume Active Game Banner
+  const resumeBtn = document.getElementById('btn-resume-game');
+  if (resumeBtn) {
+    resumeBtn.addEventListener('click', () => {
+      const raw = localStorage.getItem('loteria_session');
+      if (raw && socket) {
+        try {
+          const s = JSON.parse(raw);
+          socket.emit('reconnect_session', { roomCode: s.roomCode, playerId: s.playerId });
+        } catch (e) {
+          clearLocalSession();
+        }
+      }
+    });
+  }
+
+  const dismissBtn = document.getElementById('btn-dismiss-resume');
+  if (dismissBtn) {
+    dismissBtn.addEventListener('click', () => {
+      clearLocalSession();
+    });
+  }
 }
 
 // Initialize Application
@@ -980,6 +1171,9 @@ async function init() {
   // Apply chosen/default language
   applyLanguage(currentLang);
 
+  // Check if a previous game session is available to resume
+  checkResumeBanner();
+
   // 2. Connect to Rust WebSocket backend
   socket = new RustLoteriaSocket();
   setupSocketListeners();
@@ -993,6 +1187,7 @@ async function init() {
     document.getElementById('join-code').value = roomParam.toUpperCase();
   }
 }
+
 
 // Start app
 window.addEventListener('DOMContentLoaded', init);

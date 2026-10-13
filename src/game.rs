@@ -47,6 +47,12 @@ pub struct Player {
     pub beans: Vec<u8>,
     pub wins: u32,
     pub ready: bool,
+    #[serde(default = "default_connected")]
+    pub connected: bool,
+}
+
+fn default_connected() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -75,6 +81,7 @@ pub struct SanitizedPlayer {
     pub beans_count: usize,
     pub wins: u32,
     pub ready: bool,
+    pub connected: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -102,6 +109,7 @@ impl Room {
             beans: Vec::new(),
             wins: 0,
             ready: true,
+            connected: true,
         };
         players.insert(host_id.clone(), host_player);
 
@@ -129,10 +137,12 @@ impl Room {
                 beans_count: p.beans.len(),
                 wins: p.wins,
                 ready: p.ready,
+                connected: p.connected,
             })
             .collect()
     }
 }
+
 
 pub fn generate_room_code() -> String {
     const CHARS: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";

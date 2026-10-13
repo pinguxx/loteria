@@ -103,7 +103,15 @@ pub enum ClientMessage {
         #[serde(rename = "roomCode")]
         room_code: String,
     },
+    #[serde(rename = "reconnect_session")]
+    ReconnectSession {
+        #[serde(rename = "roomCode")]
+        room_code: String,
+        #[serde(rename = "playerId")]
+        player_id: String,
+    },
 }
+
 
 
 // Helper to broadcast JSON events to all players in a room
@@ -353,6 +361,7 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
 
     let conn_id = format!("{:x}", rand::random::<u128>());
     let mut current_room: Option<String> = None;
+    let mut current_player_id: Option<String> = None;
 
     // Process inbound messages from client
     let state_clone = state.clone();
@@ -401,6 +410,7 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                             }
 
                             current_room = Some(code.clone());
+                            current_player_id = Some(conn_id_clone.clone());
 
                             send_event(
                                 &tx_clone,
@@ -444,6 +454,7 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                                     beans: Vec::new(),
                                     wins: 0,
                                     ready: true,
+                                    connected: true,
                                 };
 
                                 let is_host = room.host_id == conn_id_clone;
@@ -457,6 +468,8 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                                 }
 
                                 current_room = Some(code.clone());
+                                current_player_id = Some(conn_id_clone.clone());
+
 
                                 send_event(
                                     &tx_clone,
@@ -683,19 +696,126 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                         }
 
                         ClientMessage::LeaveRoom { room_code } => {
-                            leave_room_helper(&state_clone, &conn_id_clone, &room_code).await;
+                            let pid = current_player_id.clone().unwrap_or_else(|| conn_id_clone.clone());
+                            leave_room_helper(&state_clone, &pid, &room_code).await;
                             current_room = None;
+                            current_player_id = None;
                             send_event(&tx_clone, "left_room", json!({ "success": true }));
+                        }
+
+                        ClientMessage::ReconnectSession { room_code, player_id } => {
+                            let code = room_code.trim().to_uppercase();
+                            let mut rooms = state_clone.rooms.write().await;
+                            if let Some(room) = rooms.get_mut(&code) {
+                                if let Some(player) = room.players.get_mut(&player_id) {
+                                    player.connected = true;
+
+                                    let is_host = room.host_id == player_id;
+                                    let player_clone = player.clone();
+                                    let room_state = room.state.clone();
+                                    let settings = room.settings.clone();
+                                    let current_card_data = room.current_card.and_then(get_card);
+                                    let drawn_count = room.drawn_cards.len();
+                                    let recent_cards: Vec<u8> = room.drawn_cards.iter().rev().take(6).copied().collect();
+                                    let winner = room.winner.clone();
+                                    drop(rooms);
+
+                                    // Register new socket channel
+                                    {
+                                        let mut sockets = state_clone.sockets.write().await;
+                                        let room_sockets = sockets.entry(code.clone()).or_default();
+                                        room_sockets.insert(player_id.clone(), tx_clone.clone());
+                                    }
+
+                                    current_room = Some(code.clone());
+                                    current_player_id = Some(player_id.clone());
+
+                                    send_event(
+                                        &tx_clone,
+                                        "session_restored",
+                                        json!({
+                                            "roomCode": code,
+                                            "isHost": is_host,
+                                            "player": player_clone,
+                                            "roomState": room_state,
+                                            "settings": settings,
+                                            "currentCard": current_card_data,
+                                            "drawnCount": drawn_count,
+                                            "totalCards": 54,
+                                            "recentCards": recent_cards,
+                                            "winner": winner
+                                        }),
+                                    );
+
+                                    broadcast_room_state(&state_clone, &code).await;
+                                    continue;
+                                }
+                            }
+                            drop(rooms);
+
+                            send_event(
+                                &tx_clone,
+                                "reconnect_failed",
+                                json!({ "message": "Room expired or no longer active." }),
+                            );
                         }
                     }
                 }
             }
         }
 
-        // Handle disconnect
-        if let Some(code) = current_room {
-            leave_room_helper(&state_clone, &conn_id_clone, &code).await;
+        // Handle disconnect with 60s grace period for reloads and screen locks
+        if let (Some(code), Some(pid)) = (current_room, current_player_id) {
+            let mut rooms = state_clone.rooms.write().await;
+            let room_exists = if let Some(room) = rooms.get_mut(&code) {
+                if let Some(player) = room.players.get_mut(&pid) {
+                    player.connected = false;
+                }
+                true
+            } else {
+                false
+            };
+            drop(rooms);
+
+            {
+                let mut sockets = state_clone.sockets.write().await;
+                if let Some(room_sockets) = sockets.get_mut(&code) {
+                    room_sockets.remove(&pid);
+                }
+            }
+
+            if room_exists {
+                broadcast_room_state(&state_clone, &code).await;
+
+                let state_del = state_clone.clone();
+                let code_del = code.clone();
+                let pid_del = pid.clone();
+
+                tokio::spawn(async move {
+                    tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+                    let mut rooms = state_del.rooms.write().await;
+                    if let Some(room) = rooms.get_mut(&code_del) {
+                        if let Some(player) = room.players.get(&pid_del) {
+                            if !player.connected {
+                                room.players.remove(&pid_del);
+                                if room.players.is_empty() {
+                                    rooms.remove(&code_del);
+                                } else if room.host_id == pid_del {
+                                    if let Some(next_host) = room.players.values().find(|p| p.connected).map(|p| p.id.clone()) {
+                                        room.host_id = next_host;
+                                    } else if let Some(any_host) = room.players.keys().next().cloned() {
+                                        room.host_id = any_host;
+                                    }
+                                }
+                                drop(rooms);
+                                broadcast_room_state(&state_del, &code_del).await;
+                            }
+                        }
+                    }
+                });
+            }
         }
+
     });
 
     // Wait until either sending or receiving terminates
