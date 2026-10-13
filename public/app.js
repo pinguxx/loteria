@@ -243,7 +243,10 @@ const TRANSLATIONS = {
   }
 };
 
-
+// Global translation accessor
+function t() {
+  return TRANSLATIONS[currentLang] || TRANSLATIONS.en;
+}
 
 // Local player state
 let myPlayer = {
@@ -276,49 +279,49 @@ const screens = {
 function applyLanguage(lang) {
   currentLang = lang;
   localStorage.setItem('loteria_lang', lang);
-  const t = TRANSLATIONS[lang] || TRANSLATIONS.en;
+  const tr = t();
 
   // Language button label
   const langBtn = document.getElementById('btn-toggle-lang');
-  if (langBtn) langBtn.textContent = t.langButton;
+  if (langBtn) langBtn.textContent = tr.langButton;
 
   // Text content elements with data-i18n
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.dataset.i18n;
-    if (t[key]) {
-      el.textContent = t[key];
+    if (tr[key]) {
+      el.textContent = tr[key];
     }
   });
 
   // Placeholder inputs with data-i18n-ph
   document.querySelectorAll('[data-i18n-ph]').forEach(el => {
     const key = el.dataset.i18nPh;
-    if (t[key]) {
-      el.placeholder = t[key];
+    if (tr[key]) {
+      el.placeholder = tr[key];
     }
   });
 
   // Select dropdown options
   const patternSelect = document.getElementById('create-pattern');
   if (patternSelect) {
-    patternSelect.options[0].text = t.patternFull;
-    patternSelect.options[1].text = t.patternLine;
-    patternSelect.options[2].text = t.patternCorners;
-    patternSelect.options[3].text = t.patternCenter;
+    patternSelect.options[0].text = tr.patternFull;
+    patternSelect.options[1].text = tr.patternLine;
+    patternSelect.options[2].text = tr.patternCorners;
+    patternSelect.options[3].text = tr.patternCenter;
   }
 
   const modeSelect = document.getElementById('create-mode');
   if (modeSelect) {
-    modeSelect.options[0].text = t.callerAuto;
-    modeSelect.options[1].text = t.callerManual;
+    modeSelect.options[0].text = tr.callerAuto;
+    modeSelect.options[1].text = tr.callerManual;
   }
 
   const speedSelect = document.getElementById('create-speed');
   if (speedSelect) {
-    speedSelect.options[0].text = t.speedFast;
-    speedSelect.options[1].text = t.speedNormal;
-    speedSelect.options[2].text = t.speedRelaxed;
-    speedSelect.options[3].text = t.speedChill;
+    speedSelect.options[0].text = tr.speedFast;
+    speedSelect.options[1].text = tr.speedNormal;
+    speedSelect.options[2].text = tr.speedRelaxed;
+    speedSelect.options[3].text = tr.speedChill;
   }
 
   // Update rule badges
@@ -331,7 +334,7 @@ function applyLanguage(lang) {
 }
 
 function updateRuleBadges() {
-  const trans = TRANSLATIONS[currentLang] || TRANSLATIONS.en;
+  const trans = t();
   const patternMap = {
     full: trans.badgeFull,
     line: trans.badgeLine,
@@ -582,43 +585,50 @@ function launchConfetti() {
 
 // Render room player lists
 function renderRoomPlayers(data) {
-  const t = TRANSLATIONS[currentLang] || TRANSLATIONS.en;
+  if (!data || !data.players) return;
+  const tr = t();
+  const myId = socket ? socket.id : (myPlayer ? myPlayer.id : null);
   const playersListEl = document.getElementById('lobby-players-list');
-  document.getElementById('lobby-player-count').textContent = data.players.length;
-  playersListEl.innerHTML = '';
+  if (playersListEl) {
+    document.getElementById('lobby-player-count').textContent = data.players.length;
+    playersListEl.innerHTML = '';
 
-  data.players.forEach(p => {
-    const item = document.createElement('div');
-    item.className = `player-item ${p.id === socket.id ? 'is-me' : ''}`;
-    item.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span>👤</span>
-        <strong>${p.name}</strong>
-        ${p.id === socket.id ? `<span style="font-size: 0.75rem; color: #f59e0b;">${t.youTag}</span>` : ''}
-        ${p.isHost ? `<span class="host-tag">${t.hostTag}</span>` : ''}
-      </div>
-      <div style="font-size: 0.85rem; color: #cbd5e1;">
-        ${t.winsBadge(p.wins)}
-      </div>
-    `;
-    playersListEl.appendChild(item);
-  });
+    data.players.forEach(p => {
+      const isMe = p.id === myId || (myPlayer && p.id === myPlayer.id);
+      const item = document.createElement('div');
+      item.className = `player-item ${isMe ? 'is-me' : ''}`;
+      item.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span>👤</span>
+          <strong>${p.name}</strong>
+          ${isMe ? `<span style="font-size: 0.75rem; color: #f59e0b;">${tr.youTag}</span>` : ''}
+          ${p.isHost ? `<span class="host-tag">${tr.hostTag}</span>` : ''}
+        </div>
+        <div style="font-size: 0.85rem; color: #cbd5e1;">
+          ${tr.winsBadge(p.wins)}
+        </div>
+      `;
+      playersListEl.appendChild(item);
+    });
+  }
 
   const scoreboardEl = document.getElementById('game-scoreboard-chips');
-  scoreboardEl.innerHTML = '';
-  data.players.forEach(p => {
-    const chip = document.createElement('div');
-    chip.className = `player-chip ${p.id === socket.id ? 'is-me' : ''}`;
-    chip.innerHTML = `
-      <strong>${p.name}</strong>: 🫘 ${p.beansCount}
-    `;
-    scoreboardEl.appendChild(chip);
-  });
+  if (scoreboardEl) {
+    scoreboardEl.innerHTML = '';
+    data.players.forEach(p => {
+      const isMe = p.id === myId || (myPlayer && p.id === myPlayer.id);
+      const chip = document.createElement('div');
+      chip.className = `player-chip ${isMe ? 'is-me' : ''}`;
+      chip.innerHTML = `
+        <strong>${p.name}</strong>: 🫘 ${p.beansCount}
+      `;
+      scoreboardEl.appendChild(chip);
+    });
+  }
 }
 
 // Socket Listeners Setup
 function setupSocketListeners() {
-  const t = () => TRANSLATIONS[currentLang] || TRANSLATIONS.en;
 
   // 1. Room Created
   socket.on('room_created', ({ roomCode, isHost, player }) => {
@@ -677,10 +687,15 @@ function setupSocketListeners() {
     document.getElementById('lobby-room-code').textContent = data.roomCode;
     document.getElementById('game-room-code-tag').textContent = data.roomCode;
     updateRuleBadges();
+    if (data.players) renderRoomPlayers(data);
 
     if (data.roomState === 'playing') {
       isGameActive = true;
       document.getElementById('bean-count-badge').textContent = `${myPlacedBeans.size} / 16`;
+
+      if (document.getElementById('game-cards-left')) {
+        document.getElementById('game-cards-left').textContent = t().cardCounter(data.drawnCount, data.totalCards || 54);
+      }
 
       // Update Desktop Active Card if present
       if (data.currentCard) {
@@ -737,6 +752,27 @@ function setupSocketListeners() {
       if (hostControls) hostControls.style.display = data.isHost ? 'flex' : 'none';
 
       showScreen('game');
+    } else if (data.roomState === 'ended' && data.winner) {
+      isGameActive = false;
+      renderTabla(document.getElementById('game-tabla'), myPlayer.tabla, false, myPlacedBeans);
+
+      const hostControls = document.getElementById('host-game-controls');
+      if (hostControls) hostControls.style.display = 'none';
+
+      document.getElementById('winner-message').textContent = `¡${data.winner.name} has won shouting LOTERÍA!`;
+      const winContainer = document.getElementById('winner-tabla-preview');
+      renderTabla(winContainer, data.winner.tabla);
+
+      const isHost = data.isHost;
+      const hostActions = document.getElementById('winner-host-actions');
+      const guestMsg = document.getElementById('winner-guest-msg');
+      const guestActions = document.getElementById('winner-guest-actions');
+      if (hostActions) hostActions.style.display = isHost ? 'block' : 'none';
+      if (guestMsg) guestMsg.style.display = isHost ? 'none' : 'block';
+      if (guestActions) guestActions.style.display = isHost ? 'none' : 'block';
+
+      document.getElementById('winner-modal').classList.add('active');
+      showScreen('game');
     } else {
       isGameActive = false;
       renderTabla(document.getElementById('preview-tabla'), myPlayer.tabla);
@@ -773,7 +809,7 @@ function setupSocketListeners() {
   socket.on('room_state', (data) => {
     latestRoomData = data;
     currentSettings = data.settings;
-    const isHost = data.hostId === socket.id;
+    const isHost = (data.hostId === socket.id) || (myPlayer && myPlayer.id && data.hostId === myPlayer.id);
     myPlayer.isHost = isHost;
 
     updateRuleBadges();
@@ -965,8 +1001,6 @@ function setupSocketListeners() {
 
 // UI Event Listeners
 function setupUIEventListeners() {
-  const t = () => TRANSLATIONS[currentLang] || TRANSLATIONS.en;
-
   // Mobile Drawer Toggle (Recent cards & Host controls on small screens)
   const drawerBtn = document.getElementById('btn-toggle-mobile-drawer');
   if (drawerBtn) {

@@ -49,6 +49,8 @@ pub struct Player {
     pub ready: bool,
     #[serde(default = "default_connected")]
     pub connected: bool,
+    #[serde(default)]
+    pub conn_id: String,
 }
 
 fn default_connected() -> bool {
@@ -110,6 +112,7 @@ impl Room {
             wins: 0,
             ready: true,
             connected: true,
+            conn_id: host_id.clone(),
         };
         players.insert(host_id.clone(), host_player);
 

@@ -455,6 +455,7 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                                     wins: 0,
                                     ready: true,
                                     connected: true,
+                                    conn_id: conn_id_clone.clone(),
                                 };
 
                                 let is_host = room.host_id == conn_id_clone;
@@ -492,12 +493,13 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                         }
 
                         ClientMessage::ShuffleTabla { room_code } => {
+                            let pid = current_player_id.as_deref().unwrap_or(&conn_id_clone);
                             let mut rooms = state_clone.rooms.write().await;
                             if let Some(room) = rooms.get_mut(&room_code) {
                                 if room.state == RoomState::Playing {
                                     continue;
                                 }
-                                if let Some(player) = room.players.get_mut(&conn_id_clone) {
+                                if let Some(player) = room.players.get_mut(pid) {
                                     player.tabla = generate_random_tabla();
                                     player.beans.clear();
                                     let tabla = player.tabla;
@@ -514,9 +516,10 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                             room_code,
                             settings,
                         } => {
+                            let pid = current_player_id.as_deref().unwrap_or(&conn_id_clone);
                             let mut rooms = state_clone.rooms.write().await;
                             if let Some(room) = rooms.get_mut(&room_code) {
-                                if room.host_id == conn_id_clone {
+                                if room.host_id == pid {
                                     room.settings = settings;
                                     drop(rooms);
                                     broadcast_room_state(&state_clone, &room_code).await;
@@ -525,10 +528,11 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                         }
 
                         ClientMessage::StartGame { room_code } => {
+                            let pid = current_player_id.as_deref().unwrap_or(&conn_id_clone);
                             let rooms = state_clone.rooms.read().await;
                             let is_host = rooms
                                 .get(&room_code)
-                                .map(|r| r.host_id == conn_id_clone)
+                                .map(|r| r.host_id == pid)
                                 .unwrap_or(false);
                             drop(rooms);
 
@@ -538,9 +542,10 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                         }
 
                         ClientMessage::ManualDraw { room_code } => {
+                            let pid = current_player_id.as_deref().unwrap_or(&conn_id_clone);
                             let mut rooms = state_clone.rooms.write().await;
                             if let Some(room) = rooms.get_mut(&room_code) {
-                                if room.host_id == conn_id_clone && room.state == RoomState::Playing && room.winner.is_none() {
+                                if room.host_id == pid && room.state == RoomState::Playing && room.winner.is_none() {
                                     // Bump generation to immediately cancel any existing auto timer loop
                                     room.game_generation += 1;
                                     let new_gen = room.game_generation;
@@ -560,9 +565,10 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                         }
 
                         ClientMessage::TogglePause { room_code } => {
+                            let pid = current_player_id.as_deref().unwrap_or(&conn_id_clone);
                             let mut rooms = state_clone.rooms.write().await;
                             if let Some(room) = rooms.get_mut(&room_code) {
-                                if room.host_id == conn_id_clone && room.state == RoomState::Playing {
+                                if room.host_id == pid && room.state == RoomState::Playing {
                                     // Bump generation to pause any running background auto task
                                     room.game_generation += 1;
                                     drop(rooms);
@@ -581,9 +587,10 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                             room_code,
                             card_index,
                         } => {
+                            let pid = current_player_id.as_deref().unwrap_or(&conn_id_clone);
                             let mut rooms = state_clone.rooms.write().await;
                             if let Some(room) = rooms.get_mut(&room_code) {
-                                if let Some(player) = room.players.get_mut(&conn_id_clone) {
+                                if let Some(player) = room.players.get_mut(pid) {
                                     if let Some(pos) =
                                         player.beans.iter().position(|&i| i == card_index)
                                     {
@@ -598,13 +605,14 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                         }
 
                         ClientMessage::ClaimLoteria { room_code } => {
+                            let pid = current_player_id.as_deref().unwrap_or(&conn_id_clone);
                             let mut rooms = state_clone.rooms.write().await;
                             if let Some(room) = rooms.get_mut(&room_code) {
                                 if room.state != RoomState::Playing || room.winner.is_some() {
                                     continue;
                                 }
 
-                                if let Some(player) = room.players.get_mut(&conn_id_clone) {
+                                if let Some(player) = room.players.get_mut(pid) {
                                     let is_valid = check_win_pattern(
                                         &player.tabla,
                                         &room.drawn_cards,
@@ -664,10 +672,11 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                         }
 
                         ClientMessage::RestartRound { room_code } => {
+                            let pid = current_player_id.as_deref().unwrap_or(&conn_id_clone);
                             let rooms = state_clone.rooms.read().await;
                             let is_host = rooms
                                 .get(&room_code)
-                                .map(|r| r.host_id == conn_id_clone)
+                                .map(|r| r.host_id == pid)
                                 .unwrap_or(false);
                             drop(rooms);
 
@@ -675,6 +684,7 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                                 start_game_session(&state_clone, &room_code).await;
                             }
                         }
+
 
                         ClientMessage::SendReaction {
                             room_code,
@@ -709,6 +719,7 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                             if let Some(room) = rooms.get_mut(&code) {
                                 if let Some(player) = room.players.get_mut(&player_id) {
                                     player.connected = true;
+                                    player.conn_id = conn_id_clone.clone();
 
                                     let is_host = room.host_id == player_id;
                                     let player_clone = player.clone();
@@ -718,6 +729,7 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                                     let drawn_count = room.drawn_cards.len();
                                     let recent_cards: Vec<u8> = room.drawn_cards.iter().rev().take(6).copied().collect();
                                     let winner = room.winner.clone();
+                                    let sanitized_players = room.sanitize_players();
                                     drop(rooms);
 
                                     // Register new socket channel
@@ -743,7 +755,8 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                                             "drawnCount": drawn_count,
                                             "totalCards": 54,
                                             "recentCards": recent_cards,
-                                            "winner": winner
+                                            "winner": winner,
+                                            "players": sanitized_players
                                         }),
                                     );
 
@@ -767,36 +780,38 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
         // Handle disconnect with 60s grace period for reloads and screen locks
         if let (Some(code), Some(pid)) = (current_room, current_player_id) {
             let mut rooms = state_clone.rooms.write().await;
-            let room_exists = if let Some(room) = rooms.get_mut(&code) {
+            let mut should_wait_grace_period = false;
+            if let Some(room) = rooms.get_mut(&code) {
                 if let Some(player) = room.players.get_mut(&pid) {
-                    player.connected = false;
-                }
-                true
-            } else {
-                false
-            };
-            drop(rooms);
-
-            {
-                let mut sockets = state_clone.sockets.write().await;
-                if let Some(room_sockets) = sockets.get_mut(&code) {
-                    room_sockets.remove(&pid);
+                    if player.conn_id == conn_id_clone {
+                        player.connected = false;
+                        should_wait_grace_period = true;
+                    }
                 }
             }
+            drop(rooms);
 
-            if room_exists {
+            if should_wait_grace_period {
+                {
+                    let mut sockets = state_clone.sockets.write().await;
+                    if let Some(room_sockets) = sockets.get_mut(&code) {
+                        room_sockets.remove(&pid);
+                    }
+                }
+
                 broadcast_room_state(&state_clone, &code).await;
 
                 let state_del = state_clone.clone();
                 let code_del = code.clone();
                 let pid_del = pid.clone();
+                let conn_id_del = conn_id_clone.clone();
 
                 tokio::spawn(async move {
                     tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
                     let mut rooms = state_del.rooms.write().await;
                     if let Some(room) = rooms.get_mut(&code_del) {
                         if let Some(player) = room.players.get(&pid_del) {
-                            if !player.connected {
+                            if !player.connected && player.conn_id == conn_id_del {
                                 room.players.remove(&pid_del);
                                 if room.players.is_empty() {
                                     rooms.remove(&code_del);
