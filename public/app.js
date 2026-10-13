@@ -134,7 +134,15 @@ const TRANSLATIONS = {
     toastFalseClaimAlert: (name) => `${name} shouted Loteria but didn't have the full pattern yet! Game continues.`,
     winsBadge: (w) => `🏆 ${w} win${w === 1 ? '' : 's'}`,
     hostTag: 'Host',
-    youTag: '(You)'
+    youTag: '(You)',
+    leaveRoom: 'Leave',
+    leaveRoomConfirm: 'Are you sure you want to leave the game room?',
+    btnExitRoom: '🚪 Leave to Main Menu',
+    toastLeftRoom: 'You left the room.',
+    badgeFull: '🏆 Full Board',
+    badgeLine: '📏 Any Line',
+    badgeCorners: '📐 4 Corners',
+    badgeCenter: '🎯 Center'
   },
   es: {
     appTitle: 'LOTERÍA',
@@ -201,9 +209,18 @@ const TRANSLATIONS = {
     toastFalseClaimAlert: (name) => `¡${name} gritó Lotería pero aún no tenía la figura! Continúa el juego.`,
     winsBadge: (w) => `🏆 ${w} victoria${w === 1 ? '' : 's'}`,
     hostTag: 'Anfitrión',
-    youTag: '(Tú)'
+    youTag: '(Tú)',
+    leaveRoom: 'Salir',
+    leaveRoomConfirm: '¿Seguro que deseas salir de esta sala?',
+    btnExitRoom: '🚪 Volver al Menú Principal',
+    toastLeftRoom: 'Has salido de la sala.',
+    badgeFull: '🏆 Tabla Llena',
+    badgeLine: '📏 Una Línea',
+    badgeCorners: '📐 4 Esquinas',
+    badgeCenter: '🎯 Centro'
   }
 };
+
 
 // Local player state
 let myPlayer = {
@@ -223,6 +240,7 @@ let myPlacedBeans = new Set();
 let isAudioMuted = false;
 let isSpeechMuted = false;
 let latestRoomData = null;
+let isGameActive = false;
 
 // Screens dictionary
 const screens = {
@@ -290,12 +308,12 @@ function applyLanguage(lang) {
 }
 
 function updateRuleBadges() {
-  const t = TRANSLATIONS[currentLang] || TRANSLATIONS.en;
+  const trans = TRANSLATIONS[currentLang] || TRANSLATIONS.en;
   const patternMap = {
-    full: t.patternFull,
-    line: t.patternLine,
-    four_corners: t.patternCorners,
-    center: t.patternCenter
+    full: trans.badgeFull,
+    line: trans.badgeLine,
+    four_corners: trans.badgeCorners,
+    center: trans.badgeCenter
   };
   const patternText = patternMap[currentSettings.winPattern] || currentSettings.winPattern;
   const lobbyBadge = document.getElementById('lobby-rule-badge');
@@ -304,40 +322,47 @@ function updateRuleBadges() {
   if (gameBadge) gameBadge.textContent = patternText;
 }
 
-// Initialize Application
-async function init() {
-  // 1. Fetch Cards Dataset
-  try {
-    const res = await fetch('/api/cards');
-    CARDS = await res.json();
-    CARDS.forEach(c => CARDS_MAP.set(c.id, c));
-  } catch (err) {
-    console.error('Error fetching cards:', err);
-  }
-
-  // Apply chosen/default language
-  applyLanguage(currentLang);
-
-  // 2. Connect to Rust WebSocket backend
-  socket = new RustLoteriaSocket();
-  setupSocketListeners();
-  setupUIEventListeners();
-
-  // Check URL parameters for quick join: ?room=ABC12
-  const urlParams = new URLSearchParams(window.location.search);
-  const roomParam = urlParams.get('room');
-  if (roomParam) {
-    switchTab('join');
-    document.getElementById('join-code').value = roomParam.toUpperCase();
-  }
-}
-
 function showScreen(name) {
-  Object.values(screens).forEach(s => s.classList.remove('active'));
+  Object.values(screens).forEach(s => s && s.classList.remove('active'));
   if (screens[name]) {
     screens[name].classList.add('active');
   }
+  const headerLeaveBtn = document.getElementById('btn-header-leave');
+  if (headerLeaveBtn) {
+    headerLeaveBtn.style.display = (name === 'welcome') ? 'none' : 'inline-flex';
+  }
 }
+
+function leaveCurrentRoom(skipConfirm = false) {
+  if (!skipConfirm && isGameActive) {
+    if (!confirm(t().leaveRoomConfirm)) {
+      return;
+    }
+  }
+
+  isGameActive = false;
+  window.loteriaAudio.stopSpeech();
+  const modal = document.getElementById('winner-modal');
+  if (modal) modal.classList.remove('active');
+
+  if (socket && currentRoomCode) {
+    socket.emit('leave_room', { roomCode: currentRoomCode });
+  }
+
+  currentRoomCode = '';
+  myPlayer = { id: null, name: '', tabla: [], isHost: false };
+  myPlacedBeans.clear();
+  latestRoomData = null;
+
+  if (window.history.pushState) {
+    const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+    window.history.pushState({ path: cleanUrl }, '', cleanUrl);
+  }
+
+  showScreen('welcome');
+  showToast(t().toastLeftRoom);
+}
+
 
 function switchTab(tab) {
   const tabCreate = document.getElementById('tab-create');
@@ -603,10 +628,21 @@ function setupSocketListeners() {
 
     // Card drawn counter
     document.getElementById('game-cards-left').textContent = t().cardCounter(data.drawnCount, data.totalCards);
+
+    // Track active game state
+    if (data.state !== 'playing') {
+      isGameActive = false;
+      if (data.winner) {
+        window.loteriaAudio.stopSpeech();
+      }
+    } else {
+      isGameActive = true;
+    }
   });
 
   // 6. Game Started
   socket.on('game_started', () => {
+    isGameActive = true;
     myPlacedBeans.clear();
     document.getElementById('bean-count-badge').textContent = '0 / 16';
     // Reset Mobile Caller Strip
@@ -636,6 +672,8 @@ function setupSocketListeners() {
 
   // 7. Card Drawn
   socket.on('card_drawn', ({ card, drawnCount, recentCards }) => {
+    if (!isGameActive) return; // Immediately ignore card draws if game ended
+
     const activeCardEl = document.getElementById('active-card');
     if (activeCardEl) {
       activeCardEl.classList.remove('pop-in');
@@ -722,6 +760,8 @@ function setupSocketListeners() {
 
   // 9. Legitimate Winner Announcement
   socket.on('loteria_winner', ({ winner, message }) => {
+    isGameActive = false;
+    window.loteriaAudio.stopSpeech();
     window.loteriaAudio.playFanfare();
     launchConfetti();
 
@@ -731,8 +771,18 @@ function setupSocketListeners() {
     const winContainer = document.getElementById('winner-tabla-preview');
     renderTabla(winContainer, winner.tabla);
 
+    // Show host actions if host, or guest exit if guest
+    const isHost = myPlayer && myPlayer.isHost;
+    const hostActions = document.getElementById('winner-host-actions');
+    const guestMsg = document.getElementById('winner-guest-msg');
+    const guestActions = document.getElementById('winner-guest-actions');
+    if (hostActions) hostActions.style.display = isHost ? 'block' : 'none';
+    if (guestMsg) guestMsg.style.display = isHost ? 'none' : 'block';
+    if (guestActions) guestActions.style.display = isHost ? 'none' : 'block';
+
     document.getElementById('winner-modal').classList.add('active');
   });
+
 
   // 10. Floating Reactions
   socket.on('new_reaction', ({ emoji, sender }) => {
@@ -896,7 +946,54 @@ function setupUIEventListeners() {
     spkBtn.textContent = isSpeechMuted ? '🤐' : '🗣️';
     showToast(isSpeechMuted ? t().toastSpeechOff : t().toastSpeechOn);
   });
+
+  // Leave Room Header Button
+  const headerLeave = document.getElementById('btn-header-leave');
+  if (headerLeave) {
+    headerLeave.addEventListener('click', () => leaveCurrentRoom(false));
+  }
+
+  // Leave Room from Winner Modal (Host)
+  const winExitHost = document.getElementById('btn-winner-exit-host');
+  if (winExitHost) {
+    winExitHost.addEventListener('click', () => leaveCurrentRoom(true));
+  }
+
+  // Leave Room from Winner Modal (Guest)
+  const winExitGuest = document.getElementById('btn-winner-exit-guest');
+  if (winExitGuest) {
+    winExitGuest.addEventListener('click', () => leaveCurrentRoom(true));
+  }
+}
+
+// Initialize Application
+async function init() {
+  // 1. Fetch Cards Dataset
+  try {
+    const res = await fetch('/api/cards');
+    CARDS = await res.json();
+    CARDS.forEach(c => CARDS_MAP.set(c.id, c));
+  } catch (err) {
+    console.error('Error fetching cards:', err);
+  }
+
+  // Apply chosen/default language
+  applyLanguage(currentLang);
+
+  // 2. Connect to Rust WebSocket backend
+  socket = new RustLoteriaSocket();
+  setupSocketListeners();
+  setupUIEventListeners();
+
+  // Check URL parameters for quick join: ?room=ABC12
+  const urlParams = new URLSearchParams(window.location.search);
+  const roomParam = urlParams.get('room');
+  if (roomParam) {
+    switchTab('join');
+    document.getElementById('join-code').value = roomParam.toUpperCase();
+  }
 }
 
 // Start app
 window.addEventListener('DOMContentLoaded', init);
+

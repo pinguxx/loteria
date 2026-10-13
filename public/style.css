@@ -530,23 +530,71 @@ body {
   100% { opacity: 1; transform: translateY(0); }
 }
 
+.header-leave-btn {
+  width: auto !important;
+  padding: 0 12px !important;
+  border-radius: 18px !important;
+  font-weight: 700 !important;
+  font-size: 0.8rem !important;
+  background: rgba(239, 68, 68, 0.2) !important;
+  border: 1px solid #ef4444 !important;
+  color: #fca5a5 !important;
+  transition: all 0.2s ease !important;
+}
+
+.header-leave-btn:hover {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5) !important;
+}
+
 .caller-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding-bottom: 8px;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+.caller-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+  text-align: left;
+}
+
+.caller-meta .caller-title {
+  font-size: 0.82rem;
+  color: #93c5fd;
+  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  line-height: 1.2;
+}
+
+.caller-meta .caller-counter {
+  font-size: 0.8rem;
+  color: #fbbf24;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .rule-badge {
   background: linear-gradient(135deg, #e11d48, #db2777);
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: 20px;
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(225, 29, 72, 0.35);
+  flex-shrink: 0;
 }
+
 
 /* The Big Active Card */
 .active-card-wrapper {

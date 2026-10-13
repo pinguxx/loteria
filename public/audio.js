@@ -191,6 +191,19 @@ class LoteriaAudio {
 
     window.speechSynthesis.speak(utterance);
   }
+
+  // Immediately stops all voice synthesis/locution
+  stopSpeech() {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+  }
+
+  // Stop everything (voice, effects)
+  stopAll() {
+    this.stopSpeech();
+  }
 }
+
 
 window.loteriaAudio = new LoteriaAudio();

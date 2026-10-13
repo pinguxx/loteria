@@ -98,7 +98,13 @@ pub enum ClientMessage {
         #[serde(rename = "playerName")]
         player_name: String,
     },
+    #[serde(rename = "leave_room")]
+    LeaveRoom {
+        #[serde(rename = "roomCode")]
+        room_code: String,
+    },
 }
+
 
 // Helper to broadcast JSON events to all players in a room
 pub async fn broadcast_event(state: &AppState, room_code: &str, event_name: &str, data: Value) {
@@ -172,7 +178,7 @@ pub async fn draw_next_card(state: &AppState, room_code: &str) -> bool {
         None => return false,
     };
 
-    if room.state != RoomState::Playing {
+    if room.state != RoomState::Playing || room.winner.is_some() {
         return false;
     }
 
@@ -214,6 +220,59 @@ pub async fn draw_next_card(state: &AppState, room_code: &str) -> bool {
 
     broadcast_room_state(state, room_code).await;
     true
+}
+
+// Spawn auto-caller loop bound to a specific game generation
+pub fn spawn_auto_caller(state: AppState, room_code: String, generation: u64, speed_seconds: u64) {
+    let interval = tokio::time::Duration::from_secs(speed_seconds.max(4));
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(interval).await;
+            {
+                let rooms = state.rooms.read().await;
+                if let Some(r) = rooms.get(&room_code) {
+                    if r.game_generation != generation || r.state != RoomState::Playing || r.winner.is_some() {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+
+            if !draw_next_card(&state, &room_code).await {
+                break;
+            }
+        }
+    });
+}
+
+// Clean helper to remove player from room and update room state
+pub async fn leave_room_helper(state: &AppState, conn_id: &str, room_code: &str) {
+    let mut rooms = state.rooms.write().await;
+    if let Some(room) = rooms.get_mut(room_code) {
+        room.players.remove(conn_id);
+        if room.players.is_empty() {
+            rooms.remove(room_code);
+        } else if room.host_id == conn_id {
+            // Elect new host
+            if let Some(next_host) = room.players.keys().next().cloned() {
+                room.host_id = next_host;
+            }
+        }
+    }
+    drop(rooms);
+
+    {
+        let mut sockets = state.sockets.write().await;
+        if let Some(room_sockets) = sockets.get_mut(room_code) {
+            room_sockets.remove(conn_id);
+            if room_sockets.is_empty() {
+                sockets.remove(room_code);
+            }
+        }
+    }
+
+    broadcast_room_state(state, room_code).await;
 }
 
 // Start room game and spawn auto-draw task if mode is auto
@@ -259,7 +318,7 @@ pub async fn start_game_session(state: &AppState, room_code: &str) {
         {
             let rooms = state_clone.rooms.read().await;
             if let Some(r) = rooms.get(&code_clone) {
-                if r.game_generation != generation || r.state != RoomState::Playing {
+                if r.game_generation != generation || r.state != RoomState::Playing || r.winner.is_some() {
                     return;
                 }
             } else {
@@ -272,26 +331,11 @@ pub async fn start_game_session(state: &AppState, room_code: &str) {
         }
 
         if settings.caller_mode == "auto" {
-            let interval = tokio::time::Duration::from_secs(settings.speed_seconds.max(4));
-            loop {
-                tokio::time::sleep(interval).await;
-                let rooms = state_clone.rooms.read().await;
-                if let Some(r) = rooms.get(&code_clone) {
-                    if r.game_generation != generation || r.state != RoomState::Playing {
-                        break;
-                    }
-                } else {
-                    break;
-                }
-                drop(rooms);
-
-                if !draw_next_card(&state_clone, &code_clone).await {
-                    break;
-                }
-            }
+            spawn_auto_caller(state_clone, code_clone, generation, settings.speed_seconds);
         }
     });
 }
+
 
 // WebSocket Connection Lifecycle Handler
 pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
@@ -481,15 +525,24 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                         }
 
                         ClientMessage::ManualDraw { room_code } => {
-                            let rooms = state_clone.rooms.read().await;
-                            let is_host = rooms
-                                .get(&room_code)
-                                .map(|r| r.host_id == conn_id_clone)
-                                .unwrap_or(false);
-                            drop(rooms);
+                            let mut rooms = state_clone.rooms.write().await;
+                            if let Some(room) = rooms.get_mut(&room_code) {
+                                if room.host_id == conn_id_clone && room.state == RoomState::Playing && room.winner.is_none() {
+                                    // Bump generation to immediately cancel any existing auto timer loop
+                                    room.game_generation += 1;
+                                    let new_gen = room.game_generation;
+                                    let is_auto = room.settings.caller_mode == "auto";
+                                    let speed = room.settings.speed_seconds;
+                                    drop(rooms);
 
-                            if is_host {
-                                draw_next_card(&state_clone, &room_code).await;
+                                    // Draw card immediately
+                                    let drawn = draw_next_card(&state_clone, &room_code).await;
+
+                                    // If auto mode and game still active, spawn new auto loop that waits the FULL interval from now
+                                    if drawn && is_auto {
+                                        spawn_auto_caller(state_clone.clone(), room_code.clone(), new_gen, speed);
+                                    }
+                                }
                             }
                         }
 
@@ -534,7 +587,7 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                         ClientMessage::ClaimLoteria { room_code } => {
                             let mut rooms = state_clone.rooms.write().await;
                             if let Some(room) = rooms.get_mut(&room_code) {
-                                if room.state != RoomState::Playing {
+                                if room.state != RoomState::Playing || room.winner.is_some() {
                                     continue;
                                 }
 
@@ -551,7 +604,7 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                                         player.wins += 1;
 
                                         let winner_info = WinnerInfo {
-                                            id: player.id.clone(),
+                                             id: player.id.clone(),
                                             name: player.name.clone(),
                                             tabla: player.tabla,
                                             win_pattern: room.settings.win_pattern.clone(),
@@ -628,6 +681,12 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
                             )
                             .await;
                         }
+
+                        ClientMessage::LeaveRoom { room_code } => {
+                            leave_room_helper(&state_clone, &conn_id_clone, &room_code).await;
+                            current_room = None;
+                            send_event(&tx_clone, "left_room", json!({ "success": true }));
+                        }
                     }
                 }
             }
@@ -635,30 +694,7 @@ pub async fn handle_ws_connection(socket: WebSocket, state: AppState) {
 
         // Handle disconnect
         if let Some(code) = current_room {
-            let mut rooms = state_clone.rooms.write().await;
-            if let Some(room) = rooms.get_mut(&code) {
-                room.players.remove(&conn_id_clone);
-                if room.players.is_empty() {
-                    rooms.remove(&code);
-                } else if room.host_id == conn_id_clone {
-                    // Elect new host
-                    let next_host = room.players.keys().next().cloned().unwrap();
-                    room.host_id = next_host;
-                }
-            }
-            drop(rooms);
-
-            {
-                let mut sockets = state_clone.sockets.write().await;
-                if let Some(room_sockets) = sockets.get_mut(&code) {
-                    room_sockets.remove(&conn_id_clone);
-                    if room_sockets.is_empty() {
-                        sockets.remove(&code);
-                    }
-                }
-            }
-
-            broadcast_room_state(&state_clone, &code).await;
+            leave_room_helper(&state_clone, &conn_id_clone, &code).await;
         }
     });
 

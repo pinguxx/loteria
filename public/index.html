@@ -33,12 +33,15 @@
       </div>
     </div>
     <div class="header-actions">
+      <!-- Leave Room Button (Visible during lobby and game) -->
+      <button id="btn-header-leave" class="btn-icon header-leave-btn" style="display: none;" title="Leave Room / Salir">🚪 <span data-i18n="leaveRoom">Leave</span></button>
       <!-- Language Switcher Toggle (Defaults to English) -->
       <button id="btn-toggle-lang" class="btn-icon" style="width: auto; padding: 0 12px; border-radius: 18px; font-weight: 800; font-size: 0.82rem;" title="Switch Language / Cambiar Idioma">🌐 Español</button>
       <button id="btn-toggle-sound" class="btn-icon" title="Sound Effects">🔊</button>
       <button id="btn-toggle-speech" class="btn-icon" title="Voice Caller">🗣️</button>
     </div>
   </header>
+
 
   <!-- Main Container -->
   <main class="container">
@@ -188,12 +191,13 @@
         <!-- Left / Top: Caller Panel ("El Cantor") -->
         <div id="caller-panel" class="caller-panel">
           <div class="caller-header">
-            <div>
-              <span style="font-size: 0.8rem; color: #cbd5e1; text-transform: uppercase; font-weight: 700;" data-i18n="callerTitle">The Caller</span>
-              <div id="game-cards-left" style="font-size: 0.8rem; color: #fbbf24;">Card 0 / 54</div>
+            <div class="caller-meta">
+              <span class="caller-title" data-i18n="callerTitle">The Caller</span>
+              <div id="game-cards-left" class="caller-counter">Card 0 / 54</div>
             </div>
             <div id="game-rule-badge" class="rule-badge">Full Board</div>
           </div>
+
 
           <!-- Active Card Frame -->
           <div class="active-card-wrapper">
@@ -297,12 +301,17 @@
 
       <div id="winner-host-actions" style="margin-top: 20px; display: none;">
         <button id="btn-restart-round" class="btn-primary" style="font-size: 1.15rem;" data-i18n="btnPlayAgain">Play Another Round!</button>
+        <button id="btn-winner-exit-host" class="btn-secondary" style="margin-top: 10px; width: 100%; font-size: 0.95rem;" data-i18n="btnExitRoom">🚪 Leave to Main Menu</button>
       </div>
       <div id="winner-guest-msg" style="color: #94a3b8; font-style: italic; margin-top: 14px;" data-i18n="waitingNextRound">
         Waiting for host to start another round...
       </div>
+      <div id="winner-guest-actions" style="margin-top: 12px; display: none;">
+        <button id="btn-winner-exit-guest" class="btn-secondary" style="width: 100%; font-size: 0.95rem;" data-i18n="btnExitRoom">🚪 Leave to Main Menu</button>
+      </div>
     </div>
   </div>
+
 
   <!-- Toast Container -->
   <div id="toast-container" class="toast-container"></div>
