@@ -13,6 +13,19 @@ use tower_http::services::ServeDir;
 use crate::cards::CARDS;
 use crate::ws::{handle_ws_connection, AppState};
 
+async fn health_check_api(State(state): State<AppState>) -> impl IntoResponse {
+    let rooms_count = state.rooms.read().await.len();
+    let sockets_guard = state.sockets.read().await;
+    let connections_count: usize = sockets_guard.values().map(|r| r.len()).sum();
+
+    Json(serde_json::json!({
+        "status": "ok",
+        "service": "loteria-rust",
+        "active_rooms": rooms_count,
+        "active_connections": connections_count
+    }))
+}
+
 async fn get_cards_api() -> impl IntoResponse {
     Json(&CARDS[..])
 }
@@ -39,6 +52,9 @@ async fn main() {
         .allow_headers(Any);
 
     let app = Router::new()
+        .route("/health", get(health_check_api))
+        .route("/healthz", get(health_check_api))
+        .route("/api/health", get(health_check_api))
         .route("/api/cards", get(get_cards_api))
         .route("/ws", get(ws_handler))
         .fallback_service(ServeDir::new("public"))
