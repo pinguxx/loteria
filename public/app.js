@@ -184,7 +184,10 @@ const TRANSLATIONS = {
     podiumDormilonSub: 'Missed drawn cards',
     tokenChanged: (name) => `Marker token: ${name}`,
     dualTablaOn: '🎴 2 Boards (ACTIVE)',
-    dualTablaOff: '🎴+ 2 Boards'
+    dualTablaOff: '🎴+ 2 Boards',
+    btnAddBot: '🤖 + Add Bot',
+    btnRemoveBot: '🤖 - Remove Bot',
+    botTag: 'BOT'
   },
   es: {
     appTitle: 'LOTERÍA',
@@ -285,7 +288,10 @@ const TRANSLATIONS = {
     podiumDormilonSub: 'Cartas pasadas',
     tokenChanged: (name) => `Ficha: ${name}`,
     dualTablaOn: '🎴 2 Tablas (ACTIVO)',
-    dualTablaOff: '🎴+ 2 Tablas'
+    dualTablaOff: '🎴+ 2 Tablas',
+    btnAddBot: '🤖 + Agregar Bot',
+    btnRemoveBot: '🤖 - Quitar Bot',
+    botTag: 'BOT'
   }
 };
 
@@ -920,10 +926,11 @@ function renderRoomPlayers(data) {
       item.className = `player-item ${isMe ? 'is-me' : ''}`;
       item.innerHTML = `
         <div style="display: flex; align-items: center; gap: 8px;">
-          <span>👤</span>
+          <span>${p.isBot ? '🤖' : '👤'}</span>
           <strong>${p.name}</strong>
           ${isMe ? `<span style="font-size: 0.75rem; color: #f59e0b;">${tr.youTag}</span>` : ''}
           ${p.isHost ? `<span class="host-tag">${tr.hostTag}</span>` : ''}
+          ${p.isBot ? `<span class="bot-tag">${tr.botTag || 'BOT'}</span>` : ''}
         </div>
         <div style="font-size: 0.85rem; color: #cbd5e1; display: flex; align-items: center; gap: 8px;">
           ${tr.winsBadge(p.wins)}
@@ -942,7 +949,7 @@ function renderRoomPlayers(data) {
       const chip = document.createElement('div');
       chip.className = `player-chip ${isMe ? 'is-me' : ''}`;
       chip.innerHTML = `
-        <strong>${p.name}</strong>: 🫘 ${p.beansCount}
+        <strong>${p.isBot ? '🤖 ' : ''}${p.name}</strong>: 🫘 ${p.beansCount}
         ${p.chips !== undefined ? `<span style="color: #fde047; font-size: 0.75rem; margin-left: 4px;">(💰${p.chips})</span>` : ''}
       `;
       scoreboardEl.appendChild(chip);
@@ -965,6 +972,14 @@ function setupSocketListeners() {
 
     document.getElementById('lobby-host-controls').style.display = 'block';
     document.getElementById('lobby-guest-msg').style.display = 'none';
+    const botControls = document.getElementById('lobby-bot-controls');
+    if (botControls) {
+      botControls.style.display = 'flex';
+      const addBtn = document.getElementById('btn-add-bot');
+      const removeBtn = document.getElementById('btn-remove-bot');
+      if (addBtn) addBtn.disabled = false;
+      if (removeBtn) removeBtn.disabled = true;
+    }
 
     renderTabla(document.getElementById('preview-tabla'), myPlayer.tabla);
     renderLobbyQRCode(roomCode);
@@ -982,12 +997,15 @@ function setupSocketListeners() {
     document.getElementById('lobby-room-code').textContent = roomCode;
     document.getElementById('game-room-code-tag').textContent = roomCode;
 
+    const botControls = document.getElementById('lobby-bot-controls');
     if (isHost) {
       document.getElementById('lobby-host-controls').style.display = 'block';
       document.getElementById('lobby-guest-msg').style.display = 'none';
+      if (botControls) botControls.style.display = 'flex';
     } else {
       document.getElementById('lobby-host-controls').style.display = 'none';
       document.getElementById('lobby-guest-msg').style.display = 'block';
+      if (botControls) botControls.style.display = 'none';
     }
 
     renderTabla(document.getElementById('preview-tabla'), myPlayer.tabla);
@@ -1131,6 +1149,17 @@ function setupSocketListeners() {
       if (hostControls) hostControls.style.display = data.isHost ? 'block' : 'none';
       if (guestMsg) guestMsg.style.display = data.isHost ? 'none' : 'block';
 
+      const botControls = document.getElementById('lobby-bot-controls');
+      if (botControls) {
+        botControls.style.display = data.isHost ? 'flex' : 'none';
+        if (data.isHost && data.players) {
+          const addBtn = document.getElementById('btn-add-bot');
+          const removeBtn = document.getElementById('btn-remove-bot');
+          if (addBtn) addBtn.disabled = data.players.length >= 10;
+          if (removeBtn) removeBtn.disabled = !data.players.some(p => p.isBot);
+        }
+      }
+
       showScreen('lobby');
     }
 
@@ -1187,18 +1216,31 @@ function setupSocketListeners() {
     potVals.forEach(v => { if (v) v.textContent = potAmount; });
 
     // Host controls visibility
+    const botControls = document.getElementById('lobby-bot-controls');
     if (isHost) {
       document.getElementById('lobby-host-controls').style.display = 'block';
       document.getElementById('lobby-guest-msg').style.display = 'none';
       document.getElementById('host-game-controls').style.display = 'flex';
       document.getElementById('winner-host-actions').style.display = 'block';
       document.getElementById('winner-guest-msg').style.display = 'none';
+
+      if (botControls) {
+        botControls.style.display = (data.state === 'lobby') ? 'flex' : 'none';
+        const addBtn = document.getElementById('btn-add-bot');
+        const removeBtn = document.getElementById('btn-remove-bot');
+        if (addBtn) addBtn.disabled = data.players.length >= 10;
+        if (removeBtn) removeBtn.disabled = !data.players.some(p => p.isBot);
+      }
     } else {
       document.getElementById('lobby-host-controls').style.display = 'none';
       document.getElementById('lobby-guest-msg').style.display = 'block';
       document.getElementById('host-game-controls').style.display = 'none';
       document.getElementById('winner-host-actions').style.display = 'none';
       document.getElementById('winner-guest-msg').style.display = 'block';
+
+      if (botControls) {
+        botControls.style.display = 'none';
+      }
     }
 
     // Card drawn counter
@@ -1524,6 +1566,25 @@ function setupUIEventListeners() {
       socket.emit('shuffle_tabla', { roomCode: currentRoomCode });
     }
   });
+
+  // Bot Controls (Host only)
+  const btnAddBot = document.getElementById('btn-add-bot');
+  if (btnAddBot) {
+    btnAddBot.addEventListener('click', () => {
+      if (socket && currentRoomCode) {
+        socket.emit('add_bot', { roomCode: currentRoomCode });
+      }
+    });
+  }
+
+  const btnRemoveBot = document.getElementById('btn-remove-bot');
+  if (btnRemoveBot) {
+    btnRemoveBot.addEventListener('click', () => {
+      if (socket && currentRoomCode) {
+        socket.emit('remove_bot', { roomCode: currentRoomCode, botId: null });
+      }
+    });
+  }
 
   // Start Game Button (Host)
   document.getElementById('btn-start-game').addEventListener('click', () => {

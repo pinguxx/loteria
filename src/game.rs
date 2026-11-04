@@ -69,6 +69,8 @@ pub struct Player {
     pub conn_id: String,
     #[serde(default = "default_chips")]
     pub chips: u32,
+    #[serde(default)]
+    pub is_bot: bool,
 }
 
 fn default_connected() -> bool {
@@ -108,6 +110,8 @@ pub struct SanitizedPlayer {
     pub ready: bool,
     pub connected: bool,
     pub chips: u32,
+    #[serde(rename = "isBot")]
+    pub is_bot: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -142,6 +146,7 @@ impl Room {
             connected: true,
             conn_id: host_id.clone(),
             chips: 50,
+            is_bot: false,
         };
         players.insert(host_id.clone(), host_player);
 
@@ -174,8 +179,65 @@ impl Room {
                 ready: p.ready,
                 connected: p.connected,
                 chips: p.chips,
+                is_bot: p.is_bot,
             })
             .collect()
+    }
+
+    pub fn add_bot(&mut self) -> Result<Player, String> {
+        if self.players.len() >= 10 {
+            return Err("Room is full (max 10 players)".to_string());
+        }
+        const BOT_PROFILES: [(&str, &str); 10] = [
+            ("🤖 Don Ramón Bot", "👴"),
+            ("🤖 La Catrina Bot", "💀"),
+            ("🤖 El Chavo Bot", "🧢"),
+            ("🤖 Lupita Bot", "🌺"),
+            ("🤖 Pancho Villa Bot", "🤠"),
+            ("🤖 Frida Bot", "🎨"),
+            ("🤖 El Santo Bot", "🥊"),
+            ("🤖 Cantinflas Bot", "🎭"),
+            ("🤖 Sor Juana Bot", "📜"),
+            ("🤖 Chapulín Bot", "🦗"),
+        ];
+        let bot_count = self.players.values().filter(|p| p.is_bot).count();
+        let (name, _emoji) = BOT_PROFILES[bot_count % BOT_PROFILES.len()];
+        let bot_id = format!("bot_{:x}", rand::random::<u32>());
+        let bot_player = Player {
+            id: bot_id.clone(),
+            name: name.to_string(),
+            tabla: generate_random_tabla(),
+            tabla_2: None,
+            beans: Vec::new(),
+            beans_2: Vec::new(),
+            wins: 0,
+            ready: true,
+            connected: true,
+            conn_id: format!("conn_{}", bot_id),
+            chips: 50,
+            is_bot: true,
+        };
+        self.players.insert(bot_id, bot_player.clone());
+        Ok(bot_player)
+    }
+
+    pub fn remove_bot(&mut self, bot_id: Option<&str>) -> Result<String, String> {
+        let id_to_remove = if let Some(id) = bot_id {
+            if self.players.get(id).map(|p| p.is_bot).unwrap_or(false) {
+                Some(id.to_string())
+            } else {
+                None
+            }
+        } else {
+            self.players.values().find(|p| p.is_bot).map(|p| p.id.clone())
+        };
+
+        if let Some(id) = id_to_remove {
+            self.players.remove(&id);
+            Ok(id)
+        } else {
+            Err("No bots in this room".to_string())
+        }
     }
 }
 

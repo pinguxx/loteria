@@ -2312,4 +2312,57 @@ body[data-theme="vintage"] .modal-content {
   word-break: break-word;
 }
 
+/* Solo / Bot Controls in Lobby */
+.lobby-bot-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin: 16px 0 10px 0;
+}
+
+.btn-bot-action {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1.5px solid #f59e0b;
+  color: #fef08a;
+  font-size: 0.88rem;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-bot-action:hover:not(:disabled) {
+  background: #f59e0b;
+  color: #1a0f07;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+}
+
+.btn-bot-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.bot-tag {
+  display: inline-block;
+  background: #3b82f6;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
 
