@@ -187,7 +187,10 @@ const TRANSLATIONS = {
     dualTablaOff: '🎴+ 2 Boards',
     btnAddBot: '🤖 + Add Bot',
     btnRemoveBot: '🤖 - Remove Bot',
-    botTag: 'BOT'
+    botTag: 'BOT',
+    btnShareVictory: '📸 Share Victory Card',
+    cardDownloaded: 'Victory card saved!',
+    cardShared: 'Victory shared!'
   },
   es: {
     appTitle: 'LOTERÍA',
@@ -291,7 +294,10 @@ const TRANSLATIONS = {
     dualTablaOff: '🎴+ 2 Tablas',
     btnAddBot: '🤖 + Agregar Bot',
     btnRemoveBot: '🤖 - Quitar Bot',
-    botTag: 'BOT'
+    botTag: 'BOT',
+    btnShareVictory: '📸 Compartir Victoria',
+    cardDownloaded: '¡Tarjeta de victoria guardada!',
+    cardShared: '¡Victoria compartida!'
   }
 };
 
@@ -345,6 +351,7 @@ function escapeHtml(str) {
 let isAudioMuted = false;
 let isSpeechMuted = false;
 let latestRoomData = null;
+let latestWinnerData = null;
 let isGameActive = false;
 
 // Screens dictionary
@@ -637,6 +644,7 @@ function leaveCurrentRoom(skipConfirm = false) {
   mySecondTabla = null;
   updateDualTablaUI();
   latestRoomData = null;
+  latestWinnerData = null;
 
   clearLocalSession();
 
@@ -1130,6 +1138,15 @@ function setupSocketListeners() {
       const winContainer = document.getElementById('winner-tabla-preview');
       renderTabla(winContainer, data.winner.tabla);
 
+      latestWinnerData = {
+        winner: data.winner,
+        message: `¡${data.winner.name} has won shouting LOTERÍA!`,
+        potPrize: data.pot || 0,
+        salado: data.salado || null,
+        dormilon: data.dormilon || null,
+        roomCode: data.roomCode
+      };
+
       const isHost = data.isHost;
       const hostActions = document.getElementById('winner-host-actions');
       const guestMsg = document.getElementById('winner-guest-msg');
@@ -1266,6 +1283,7 @@ function setupSocketListeners() {
   // 6. Game Started
   socket.on('game_started', () => {
     isGameActive = true;
+    latestWinnerData = null;
     myPlacedBeans.clear();
     myPlacedBeans2.clear();
     updateBeanCounters();
@@ -1408,6 +1426,15 @@ function setupSocketListeners() {
     launchConfetti();
 
     document.getElementById('winner-message').textContent = message;
+
+    latestWinnerData = {
+      winner,
+      message,
+      potPrize,
+      salado,
+      dormilon,
+      roomCode: currentRoomCode
+    };
 
     // Render winner's tabla preview
     const winContainer = document.getElementById('winner-tabla-preview');
@@ -1778,6 +1805,19 @@ function setupUIEventListeners() {
     headerLeave.addEventListener('click', () => leaveCurrentRoom(false));
   }
 
+  // Share Victory Card
+  const btnShareVictory = document.getElementById('btn-share-victory');
+  if (btnShareVictory) {
+    btnShareVictory.addEventListener('click', () => {
+      const dataToShare = latestWinnerData || {
+        winner: { name: (myPlayer && myPlayer.name) || 'Campeón', tabla: (myPlayer && myPlayer.tabla) || [], winPattern: currentSettings.winPattern },
+        potPrize: 0,
+        roomCode: currentRoomCode
+      };
+      generateVictoryCard(dataToShare);
+    });
+  }
+
   // Leave Room from Winner Modal (Host)
   const winExitHost = document.getElementById('btn-winner-exit-host');
   if (winExitHost) {
@@ -1839,6 +1879,297 @@ window.addEventListener('appinstalled', () => {
   if (pwaBtn) pwaBtn.style.display = 'none';
   showToast('¡Lotería Mexicana instalada en tu dispositivo! 🎉');
 });
+
+// Canvas rounded rect helper
+function drawRoundRect(ctx, x, y, w, h, r) {
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, r);
+  } else {
+    if (w < 2 * r) r = w / 2;
+    if (h < 2 * r) r = h / 2;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+}
+
+// -------------------------------------------------------------
+// Shareable Canvas Victory Certificate Generator (Lotería Poster)
+// -------------------------------------------------------------
+function generateVictoryCard(data) {
+  if (!data || !data.winner) return;
+  const winner = data.winner;
+  const isEs = currentLang === 'es';
+  const tr = t();
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 800;
+  canvas.height = 1080;
+  const ctx = canvas.getContext('2d');
+
+  // 1. Theme-Aware Background Gradient
+  const bgGrad = ctx.createLinearGradient(0, 0, 800, 1080);
+  if (currentTheme === 'muertos') {
+    bgGrad.addColorStop(0, '#2b093d');
+    bgGrad.addColorStop(0.5, '#150321');
+    bgGrad.addColorStop(1, '#06010a');
+  } else if (currentTheme === 'vintage') {
+    bgGrad.addColorStop(0, '#361d10');
+    bgGrad.addColorStop(0.5, '#221107');
+    bgGrad.addColorStop(1, '#110702');
+  } else {
+    // Fiesta Clásica
+    bgGrad.addColorStop(0, '#331508');
+    bgGrad.addColorStop(0.5, '#1e0a03');
+    bgGrad.addColorStop(1, '#0c0401');
+  }
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, 800, 1080);
+
+  // 2. Double Metallic Border with Ornaments
+  const borderGold = '#f59e0b';
+  const borderInner = currentTheme === 'muertos' ? '#ec4899' : (currentTheme === 'vintage' ? '#bc6c25' : '#e11d48');
+
+  ctx.strokeStyle = borderGold;
+  ctx.lineWidth = 8;
+  ctx.strokeRect(20, 20, 760, 1040);
+
+  ctx.strokeStyle = borderInner;
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(30, 30, 740, 1020);
+
+  // Corner Star Ornaments
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = "bold 24px 'Outfit', sans-serif";
+  ctx.textAlign = 'center';
+  ctx.fillText('✦', 46, 54);
+  ctx.fillText('✦', 754, 54);
+  ctx.fillText('✦', 46, 1032);
+  ctx.fillText('✦', 754, 1032);
+
+  // 3. Header Banner
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = "900 32px 'Outfit', sans-serif";
+  ctx.fillText('🎴 LOTERÍA MEXICANA 🇲🇽', 400, 80);
+
+  ctx.fillStyle = '#f59e0b';
+  ctx.font = "700 14px 'Outfit', sans-serif";
+  ctx.fillText(isEs ? '— CERTIFICADO OFICIAL DE VICTORIA —' : '— OFFICIAL VICTORY CERTIFICATE —', 400, 110);
+
+  // 4. Winner Laurel Crown
+  ctx.beginPath();
+  ctx.arc(400, 185, 54, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(245, 158, 11, 0.15)';
+  ctx.fill();
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 3.5;
+  ctx.stroke();
+
+  ctx.font = '54px sans-serif';
+  ctx.fillText('👑', 400, 204);
+
+  // Winner Name
+  ctx.fillStyle = '#ffffff';
+  ctx.font = "900 38px 'Outfit', sans-serif";
+  ctx.fillText(winner.name || 'Gran Ganador', 400, 275);
+
+  // Win Condition / Shouted Loteria
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = "800 17px 'Outfit', sans-serif";
+  const patternKey = winner.winPattern || currentSettings.winPattern;
+  const patternName = {
+    full: isEs ? 'Tabla Llena' : 'Full Board',
+    line: isEs ? 'Una Línea' : 'Any Line',
+    four_corners: isEs ? '4 Esquinas' : '4 Corners',
+    center: isEs ? 'Centro / Pozo' : 'Center Pot'
+  }[patternKey] || (isEs ? 'Tabla Llena' : 'Full Board');
+  ctx.fillText(isEs ? `🏆 ¡¡GRITÓ LOTERÍA!! (${patternName})` : `🏆 SHOUTED LOTERÍA! (${patternName})`, 400, 308);
+
+  // Pot Prize (if > 0)
+  if (data.potPrize && data.potPrize > 0) {
+    ctx.fillStyle = '#fde047';
+    ctx.font = "800 16px 'Outfit', sans-serif";
+    ctx.fillText(isEs ? `💰 ¡Premio Acumulado: ${data.potPrize} Fichas!` : `💰 Pot Prize Won: ${data.potPrize} Chips!`, 400, 335);
+  }
+
+  // 5. Render 4x4 Tabla Grid on Canvas!
+  const tablaCards = winner.tabla || [];
+  if (tablaCards.length === 16) {
+    const gridW = 380;
+    const gridH = 430;
+    const startX = (800 - gridW) / 2; // 210
+    const startY = 355;
+    const cardGap = 8;
+    const cardW = (gridW - 3 * cardGap) / 4; // 89px
+    const cardH = (gridH - 3 * cardGap) / 4; // 101.5px
+
+    // Board container background & frame
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    drawRoundRect(ctx, startX - 8, startY - 8, gridW + 16, gridH + 16, 12);
+    ctx.fill();
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    for (let i = 0; i < 16; i++) {
+      const col = i % 4;
+      const row = Math.floor(i / 4);
+      const cx = startX + col * (cardW + cardGap);
+      const cy = startY + row * (cardH + cardGap);
+
+      const cardId = tablaCards[i];
+      const card = CARDS_MAP.get(cardId);
+
+      // Card background
+      ctx.fillStyle = card ? (card.color || '#fffbeb') : '#fffbeb';
+      drawRoundRect(ctx, cx, cy, cardW, cardH, 6);
+      ctx.fill();
+      ctx.strokeStyle = '#d97706';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      if (card) {
+        // Card number
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#78350f';
+        ctx.font = "bold 12px sans-serif";
+        ctx.fillText(card.id, cx + 5, cy + 14);
+
+        // Card emoji
+        ctx.textAlign = 'center';
+        ctx.font = '34px sans-serif';
+        ctx.fillText(card.emoji, cx + cardW / 2, cy + 55);
+
+        // Card name
+        ctx.fillStyle = '#1e1b18';
+        ctx.font = "bold 10px 'Outfit', sans-serif";
+        ctx.fillText(card.name, cx + cardW / 2, cy + 86);
+
+        // Bean marker token
+        ctx.font = '20px sans-serif';
+        ctx.fillText('🫘', cx + cardW - 14, cy + 20);
+      }
+    }
+  }
+
+  // 6. Round Podium & Fun Awards Section
+  const podY = 825;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = "800 16px 'Outfit', sans-serif";
+  ctx.fillText(isEs ? '🏅 PODIO Y MEDALLAS DE HONOR' : '🏅 ROUND PODIUM & MEDALS', 400, podY);
+
+  const boxW = 214;
+  const boxH = 82;
+  const boxGap = 12;
+  const totalBoxesW = 3 * boxW + 2 * boxGap; // 666
+  const podStartX = (800 - totalBoxesW) / 2; // 67
+
+  const awardsList = [
+    {
+      icon: '🥇',
+      title: isEs ? 'Gran Ganador' : 'Grand Winner',
+      sub: isEs ? '¡Lotería!' : 'Loteria!',
+      player: winner.name,
+      border: '#f59e0b',
+      bg: 'rgba(245, 158, 11, 0.18)'
+    },
+    {
+      icon: '🥈',
+      title: isEs ? '"El Salado"' : '"El Salado"',
+      sub: data.salado && data.salado.name ? (isEs ? `¡A ${16 - data.salado.beans} frijol!` : `1 bean away!`) : (isEs ? 'A 1 frijol' : '1 away'),
+      player: (data.salado && data.salado.name) ? data.salado.name : '---',
+      border: '#94a3b8',
+      bg: 'rgba(148, 163, 184, 0.15)'
+    },
+    {
+      icon: '😴',
+      title: isEs ? '"El Dormilón"' : '"El Dormilón"',
+      sub: data.dormilon && data.dormilon.name && data.dormilon.missed > 0 ? (isEs ? `¡Olvidó ${data.dormilon.missed}!` : `Missed ${data.dormilon.missed}!`) : (isEs ? 'Cartas pasadas' : 'Missed cards'),
+      player: (data.dormilon && data.dormilon.name && data.dormilon.missed > 0) ? data.dormilon.name : '---',
+      border: '#a855f7',
+      bg: 'rgba(168, 85, 247, 0.15)'
+    }
+  ];
+
+  for (let i = 0; i < 3; i++) {
+    const aw = awardsList[i];
+    const bx = podStartX + i * (boxW + boxGap);
+    const by = podY + 14;
+
+    ctx.fillStyle = aw.bg;
+    drawRoundRect(ctx, bx, by, boxW, boxH, 8);
+    ctx.fill();
+    ctx.strokeStyle = aw.border;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.font = '22px sans-serif';
+    ctx.fillText(aw.icon, bx + boxW / 2, by + 26);
+
+    ctx.fillStyle = '#fde047';
+    ctx.font = "800 12px 'Outfit', sans-serif";
+    ctx.fillText(aw.title, bx + boxW / 2, by + 44);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = "bold 13px 'Outfit', sans-serif";
+    ctx.fillText(aw.player, bx + boxW / 2, by + 61);
+
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = "italic 10px 'Outfit', sans-serif";
+    ctx.fillText(aw.sub, bx + boxW / 2, by + 74);
+  }
+
+  // 7. Footer
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = "13px 'Outfit', sans-serif";
+  const room = data.roomCode || currentRoomCode || 'SALA';
+  const dateStr = new Date().toLocaleDateString();
+  ctx.fillText(`Sala: ${room} • ${dateStr} • ¡Juega gratis en loteria-zhet.onrender.com!`, 400, 1000);
+
+  // 8. Export & Share or Download
+  canvas.toBlob(async (blob) => {
+    if (!blob) return;
+    const fileName = `victoria-loteria-${room.toLowerCase()}.png`;
+    const file = new File([blob], fileName, { type: 'image/png' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          title: isEs ? '¡Gané en la Lotería Mexicana!' : 'I won at Mexican Lotería!',
+          text: isEs
+            ? `¡${winner.name} gritó ¡¡LOTERÍA!! en la sala ${room}! 🎴🇲🇽🏆`
+            : `${winner.name} shouted LOTERÍA and won in room ${room}! 🎴🇲🇽🏆`,
+          files: [file]
+        });
+        showToast(tr.cardShared || (isEs ? '¡Victoria compartida!' : 'Victory shared!'));
+        return;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.warn('Share sheet cancelled or failed, falling back to download:', err);
+        } else {
+          return;
+        }
+      }
+    }
+
+    // Fallback: Download image
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showToast(tr.cardDownloaded || (isEs ? '¡Tarjeta de victoria guardada!' : 'Victory card saved!'));
+  }, 'image/png');
+}
 
 // Initialize Application
 async function init() {

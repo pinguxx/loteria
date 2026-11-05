@@ -2433,6 +2433,34 @@ body[data-theme="vintage"] .modal-content {
   line-height: 1.1;
 }
 
+.btn-share-victory {
+  min-height: 38px;
+  padding: 8px 10px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  color: white !important;
+  border: 1.5px solid #34d399 !important;
+  border-radius: 10px !important;
+  font-size: clamp(0.78rem, 2.4vw, 0.88rem) !important;
+  font-weight: 800 !important;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+
+.btn-share-victory:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.5) !important;
+}
+
+.btn-share-victory:active {
+  transform: translateY(1px);
+}
+
 .winner-actions-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

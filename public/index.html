@@ -419,14 +419,21 @@
         </div>
       </div>
 
-      <div id="winner-host-actions" class="winner-actions-grid" style="display: none;">
+      <!-- Share Victory Action (Available to everyone) -->
+      <div style="margin-top: 6px; width: 100%;">
+        <button id="btn-share-victory" class="btn-primary btn-share-victory" type="button" data-i18n="btnShareVictory">
+          📸 Compartir Victoria
+        </button>
+      </div>
+
+      <div id="winner-host-actions" class="winner-actions-grid" style="display: none; margin-top: 6px;">
         <button id="btn-restart-round" class="btn-primary" data-i18n="btnPlayAgain">Play Another Round!</button>
         <button id="btn-winner-exit-host" class="btn-secondary" data-i18n="btnExitRoom">🚪 Leave to Main Menu</button>
       </div>
       <div id="winner-guest-msg" class="winner-guest-msg" data-i18n="waitingNextRound">
         Waiting for host to start another round...
       </div>
-      <div id="winner-guest-actions" style="margin-top: 8px; display: none;">
+      <div id="winner-guest-actions" style="margin-top: 6px; display: none;">
         <button id="btn-winner-exit-guest" class="btn-secondary" style="width: 100%;" data-i18n="btnExitRoom">🚪 Leave to Main Menu</button>
       </div>
     </div>
