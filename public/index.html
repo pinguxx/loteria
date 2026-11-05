@@ -383,19 +383,19 @@
 
   <!-- WINNER CELEBRATION MODAL -->
   <div id="winner-modal" class="modal-overlay">
-    <div class="modal-content">
-      <div style="font-size: 3.5rem; margin-bottom: 8px;">🏆🎺🎊</div>
-      <h2 data-i18n="winnerTitle">¡¡LOTERÍA!!</h2>
-      <p id="winner-message">A player has completed their board!</p>
+    <div class="modal-content winner-modal-content">
+      <div class="winner-celebration-icons">🏆🎺🎊</div>
+      <h2 class="winner-title" data-i18n="winnerTitle">¡¡LOTERÍA!!</h2>
+      <p id="winner-message" class="winner-message">A player has completed their board!</p>
       
       <!-- Winner mini tabla preview -->
-      <div style="display: flex; justify-content: center; margin: 16px 0;">
-        <div id="winner-tabla-preview" class="loteria-tabla" style="max-width: 280px; gap: 4px; padding: 8px;"></div>
+      <div class="winner-tabla-wrapper">
+        <div id="winner-tabla-preview" class="loteria-tabla winner-tabla-mini"></div>
       </div>
 
       <!-- Winner prize pot banner -->
       <div id="winner-pot-banner" class="winner-pot-banner" style="display: none;">
-        <span>💰 <span data-i18n="potWon">Pot Won:</span> <strong id="winner-pot-amount" style="color: #fde047; font-size: 1.3rem;">0</strong> <span data-i18n="chipsLabel">chips!</span></span>
+        <span>💰 <span data-i18n="potWon">Pot Won:</span> <strong id="winner-pot-amount" style="color: #fde047;">0</strong> <span data-i18n="chipsLabel">chips!</span></span>
       </div>
 
       <!-- Round Podium & Fun Mexican Awards -->
@@ -419,15 +419,15 @@
         </div>
       </div>
 
-      <div id="winner-host-actions" style="margin-top: 20px; display: none;">
-        <button id="btn-restart-round" class="btn-primary" style="font-size: 1.15rem;" data-i18n="btnPlayAgain">Play Another Round!</button>
-        <button id="btn-winner-exit-host" class="btn-secondary" style="margin-top: 10px; width: 100%; font-size: 0.95rem;" data-i18n="btnExitRoom">🚪 Leave to Main Menu</button>
+      <div id="winner-host-actions" class="winner-actions-grid" style="display: none;">
+        <button id="btn-restart-round" class="btn-primary" data-i18n="btnPlayAgain">Play Another Round!</button>
+        <button id="btn-winner-exit-host" class="btn-secondary" data-i18n="btnExitRoom">🚪 Leave to Main Menu</button>
       </div>
-      <div id="winner-guest-msg" style="color: #94a3b8; font-style: italic; margin-top: 14px;" data-i18n="waitingNextRound">
+      <div id="winner-guest-msg" class="winner-guest-msg" data-i18n="waitingNextRound">
         Waiting for host to start another round...
       </div>
-      <div id="winner-guest-actions" style="margin-top: 12px; display: none;">
-        <button id="btn-winner-exit-guest" class="btn-secondary" style="width: 100%; font-size: 0.95rem;" data-i18n="btnExitRoom">🚪 Leave to Main Menu</button>
+      <div id="winner-guest-actions" style="margin-top: 8px; display: none;">
+        <button id="btn-winner-exit-guest" class="btn-secondary" style="width: 100%;" data-i18n="btnExitRoom">🚪 Leave to Main Menu</button>
       </div>
     </div>
   </div>

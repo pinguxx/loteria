@@ -1134,7 +1134,7 @@ function setupSocketListeners() {
       const hostActions = document.getElementById('winner-host-actions');
       const guestMsg = document.getElementById('winner-guest-msg');
       const guestActions = document.getElementById('winner-guest-actions');
-      if (hostActions) hostActions.style.display = isHost ? 'block' : 'none';
+      if (hostActions) hostActions.style.display = isHost ? 'grid' : 'none';
       if (guestMsg) guestMsg.style.display = isHost ? 'none' : 'block';
       if (guestActions) guestActions.style.display = isHost ? 'none' : 'block';
 
@@ -1221,7 +1221,7 @@ function setupSocketListeners() {
       document.getElementById('lobby-host-controls').style.display = 'block';
       document.getElementById('lobby-guest-msg').style.display = 'none';
       document.getElementById('host-game-controls').style.display = 'flex';
-      document.getElementById('winner-host-actions').style.display = 'block';
+      document.getElementById('winner-host-actions').style.display = 'grid';
       document.getElementById('winner-guest-msg').style.display = 'none';
 
       if (botControls) {
@@ -1444,7 +1444,7 @@ function setupSocketListeners() {
     const hostActions = document.getElementById('winner-host-actions');
     const guestMsg = document.getElementById('winner-guest-msg');
     const guestActions = document.getElementById('winner-guest-actions');
-    if (hostActions) hostActions.style.display = isHost ? 'block' : 'none';
+    if (hostActions) hostActions.style.display = isHost ? 'grid' : 'none';
     if (guestMsg) guestMsg.style.display = isHost ? 'none' : 'block';
     if (guestActions) guestActions.style.display = isHost ? 'none' : 'block';
 

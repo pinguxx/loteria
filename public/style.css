@@ -1194,12 +1194,13 @@ body {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.82);
+  background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(6px);
   z-index: 10000;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 12px;
+  box-sizing: border-box;
 }
 
 .modal-overlay.active {
@@ -1208,32 +1209,49 @@ body {
 
 .modal-content {
   background: #241611;
-  border: 3px solid #f59e0b;
-  border-radius: 20px;
-  padding: 28px;
-  max-width: 480px;
+  border: 2px solid #f59e0b;
+  border-radius: 18px;
+  padding: 18px 20px;
+  max-width: 420px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   width: 100%;
   text-align: center;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
-  animation: modalPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.8), 0 0 24px rgba(245, 158, 11, 0.2);
+  animation: modalPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-sizing: border-box;
+}
+
+.modal-content::-webkit-scrollbar {
+  width: 5px;
+}
+.modal-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+.modal-content::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.4);
+  border-radius: 10px;
 }
 
 @keyframes modalPop {
-  0% { transform: scale(0.85); opacity: 0; }
+  0% { transform: scale(0.88); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
 }
 
 .modal-content h2 {
-  font-size: 2rem;
+  font-size: 1.6rem;
   font-weight: 900;
   color: #fde047;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
+  line-height: 1.1;
 }
 
 .modal-content p {
   color: #e2e8f0;
-  margin-bottom: 20px;
-  font-size: 1.05rem;
+  margin-bottom: 12px;
+  font-size: 0.92rem;
 }
 
 /* Toast Notifications */
@@ -2241,75 +2259,233 @@ body[data-theme="vintage"] .modal-content {
 }
 
 /* ============================================================
-   🥇 PODIUM & ROUND AWARDS
+   🥇 PODIUM & ROUND AWARDS (Condensed for Phones & Desktop)
    ============================================================ */
-.winner-podium-section {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin: 14px 0;
-  width: 100%;
+/* Winner Modal specific condensation */
+.winner-modal-content {
+  max-width: 380px !important;
+  padding: 12px 14px !important;
 }
 
-@media (max-width: 480px) {
-  .winner-podium-section {
-    grid-template-columns: 1fr;
-  }
-}
-
-.podium-card {
-  background: rgba(30, 20, 16, 0.7);
-  border: 1.5px solid rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
-  padding: 10px 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-
-.podium-gold {
-  border-color: #f59e0b;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(30, 20, 16, 0.8));
-  box-shadow: 0 0 12px rgba(245, 158, 11, 0.3);
-}
-
-.podium-silver {
-  border-color: #94a3b8;
-  background: linear-gradient(135deg, rgba(148, 163, 184, 0.2), rgba(30, 20, 16, 0.8));
-}
-
-.podium-sleep {
-  border-color: #a855f7;
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(30, 20, 16, 0.8));
-}
-
-.podium-icon {
-  font-size: 1.6rem;
+.winner-celebration-icons {
+  font-size: clamp(1.5rem, 4.8vw, 2.1rem);
   line-height: 1;
   margin-bottom: 2px;
 }
 
+.winner-title {
+  font-size: clamp(1.2rem, 3.8vw, 1.5rem) !important;
+  font-weight: 900 !important;
+  color: #fde047 !important;
+  margin-bottom: 2px !important;
+  line-height: 1.1 !important;
+}
+
+.winner-message {
+  font-size: clamp(0.76rem, 2.4vw, 0.86rem) !important;
+  color: #f1f5f9 !important;
+  margin-bottom: 6px !important;
+  line-height: 1.25;
+}
+
+.winner-tabla-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 4px 0 6px 0;
+}
+
+#winner-tabla-preview {
+  max-width: 154px !important;
+  gap: 2.5px !important;
+  padding: 4px !important;
+  border-width: 2px !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  background: #fef3c7;
+}
+
+#winner-tabla-preview .tabla-card {
+  padding: 2px 1px !important;
+  border-radius: 4px !important;
+  border-width: 1px !important;
+  aspect-ratio: 1 / 1.15;
+}
+
+#winner-tabla-preview .tile-num {
+  font-size: 0.44rem !important;
+  top: 1px !important;
+  left: 2px !important;
+  line-height: 1 !important;
+}
+
+#winner-tabla-preview .tile-art {
+  font-size: 1.05rem !important;
+  line-height: 1.05 !important;
+}
+
+#winner-tabla-preview .tile-name {
+  font-size: 0.44rem !important;
+  line-height: 1 !important;
+  margin-top: 1px !important;
+  max-width: 95%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#winner-tabla-preview .tile-english {
+  display: none !important;
+}
+
+#winner-tabla-preview .bean-token {
+  width: 14px !important;
+  height: 9px !important;
+}
+#winner-tabla-preview .bean-token::before {
+  font-size: 0.65rem !important;
+}
+
+.winner-pot-banner {
+  background: linear-gradient(135deg, rgba(180, 83, 9, 0.45), rgba(217, 119, 6, 0.45));
+  border: 1px solid #fde047;
+  border-radius: 8px;
+  padding: 4px 10px;
+  margin: 4px 0 6px 0;
+  font-size: clamp(0.75rem, 2.3vw, 0.85rem);
+  font-weight: 800;
+  color: #fef08a;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.25);
+}
+
+.winner-podium-section {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 5px;
+  justify-content: center;
+  margin: 6px 0 6px 0;
+  width: 100%;
+}
+
+.podium-card {
+  flex: 1;
+  min-width: 0;
+  background: rgba(30, 20, 16, 0.85);
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  padding: 5px 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  overflow: hidden;
+}
+
+.podium-gold {
+  border-color: #f59e0b;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(30, 20, 16, 0.9));
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.35);
+  transform: translateY(-1px);
+}
+
+.podium-silver {
+  border-color: #94a3b8;
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.25), rgba(30, 20, 16, 0.9));
+}
+
+.podium-sleep {
+  border-color: #a855f7;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(30, 20, 16, 0.9));
+}
+
+.podium-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+  margin-bottom: 1px;
+}
+
 .podium-title {
-  font-size: 0.75rem;
+  font-size: 0.60rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
   color: #fde047;
+  white-space: nowrap;
+  line-height: 1.1;
 }
 
 .podium-sub {
-  font-size: 0.68rem;
+  font-size: 0.54rem;
   color: #cbd5e1;
   font-style: italic;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .podium-player {
-  font-size: 0.92rem;
+  font-size: 0.74rem;
   font-weight: 800;
   color: #ffffff;
-  margin-top: 4px;
-  word-break: break-word;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 95%;
+  line-height: 1.1;
+}
+
+.winner-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+#winner-host-actions[style*="block"],
+#winner-host-actions[style*="grid"] {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.winner-actions-grid .btn-primary,
+.winner-actions-grid .btn-secondary,
+#winner-guest-actions .btn-secondary {
+  min-height: 38px;
+  padding: 8px 6px;
+  font-size: clamp(0.74rem, 2.3vw, 0.85rem) !important;
+  font-weight: 800 !important;
+  border-radius: 10px;
+  margin: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.winner-guest-msg {
+  color: #94a3b8;
+  font-style: italic;
+  margin-top: 6px;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 480px) {
+  .modal-overlay {
+    padding: 8px;
+  }
+  .winner-modal-content {
+    max-width: 96vw !important;
+    padding: 10px 8px !important;
+    max-height: 94dvh !important;
+  }
+  #winner-tabla-preview {
+    max-width: 140px !important;
+  }
+  .winner-actions-grid {
+    gap: 5px;
+  }
 }
 
 /* Solo / Bot Controls in Lobby */
