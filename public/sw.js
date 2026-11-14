@@ -1,5 +1,5 @@
 // Service Worker for ¡Lotería Mexicana Online! (PWA)
-const CACHE_NAME = 'loteria-v1';
+const CACHE_NAME = 'loteria-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -7,6 +7,7 @@ const STATIC_ASSETS = [
   '/app.js',
   '/audio.js',
   '/qrcode.min.js',
+  '/feria-bridge.js',
   '/icon.svg',
   '/manifest.json'
 ];

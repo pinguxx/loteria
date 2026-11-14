@@ -1858,7 +1858,7 @@ function setupUIEventListeners() {
 let deferredPwaPrompt = null;
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then(reg => {
+    navigator.serviceWorker.register('/sw.js?v=2').then(reg => {
       console.log('✅ ServiceWorker registered:', reg.scope);
     }).catch(err => {
       console.warn('SW registration failed:', err);
